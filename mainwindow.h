@@ -38,6 +38,8 @@ typedef struct
 
 } STRUTTURA_DISPOSITIVO;
 
+#define VERSIONE "Versione 1.0.0"
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -72,6 +74,7 @@ private:
     float valoreBarra;
     QJsonObject oggettoInserito;
     QJsonObject oggettoRoot;
+    QJsonArray oggettoArray;
     QProcess *processoBatch;
     QProcessEnvironment envProcesso;
     QTimer *timAttesaProcesso;
@@ -145,6 +148,14 @@ private slots:
     void on_btnVerify_clicked();
     void on_btnResetDevice_clicked();
     void on_btnClearLog_clicked();
+    void on_btnSelezionaHexTinting_clicked();
+
+    void on_btnSelezionaTuttoTinting_clicked();
+
+    void on_btnAnnullaSelezioneTinting_clicked();
+
+    void on_chkTinting_stateChanged(int arg1);
+
 protected:
     void keyReleaseEvent(QKeyEvent *);
 

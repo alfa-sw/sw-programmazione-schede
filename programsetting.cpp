@@ -47,5 +47,7 @@ void programSetting::initAll()
     strutturaProgramma->nomeFileCanLifter="";
     strutturaProgramma->programmaHumidifier=false;
     strutturaProgramma->nomeFileHumidifier="";
+    strutturaProgramma->programmaTinting=false;
+    strutturaProgramma->nomeFileTinting="";
 
 }

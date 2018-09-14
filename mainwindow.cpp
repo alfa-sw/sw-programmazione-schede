@@ -10,6 +10,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     caricaOggetti();
+    ui->lblVersione->setText(VERSIONE);
+
     progSetting=new programSetting(&Programma);
     statoOperazioni=STATO_IDLE;
     sottoStatoOperazioni=0;
@@ -47,13 +49,13 @@ void MainWindow::caricaOggetti()
     mapAttuatori=new QSignalMapper(this);
 
     x=10;
-    y=20;
+    y=30;
     for (i=0;i<32;i++)
     {
         chkAttuatori[i]=new QCheckBox(ui->grpAttuatori);
         Stringa.sprintf("checkAttuatori%d",i+1);
         chkAttuatori[i]->setObjectName(Stringa);
-        chkAttuatori[i]->setGeometry(QRect(x,y,71,17));
+        chkAttuatori[i]->setGeometry(QRect(x,y,120,17));
         Stringa.sprintf("Pompa %d",i+1);
         chkAttuatori[i]->setText(Stringa);
         chkAttuatori[i]->setEnabled(true);
@@ -68,7 +70,7 @@ void MainWindow::caricaOggetti()
         }
         else
         {
-            x+=80;
+            x+=130;
         }
     }
 
@@ -730,6 +732,18 @@ bool MainWindow::dispositivoSel()
         indice++;
     }
 
+    for (i=0;i<32;i++)
+    {
+        if (Programma.programmaAttuatori[i])
+        {
+            strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
+            strutturaDispositivo[indice]->IDdispositivo=i+1;
+            strutturaDispositivo[indice]->nomeFile=Programma.nomeFileAttuatori;
+            indice++;
+            dispositivoSelezionato=true;
+        }
+    }
+
     for (i=0;i<2;i++)
     {
         if (Programma.programmaAssi[i])
@@ -739,6 +753,18 @@ bool MainWindow::dispositivoSel()
             strutturaDispositivo[indice]->IDdispositivo=0x21+i;
             strutturaDispositivo[indice]->nomeFile=Programma.nomeFileAssi;
             indice++;
+        }
+    }
+
+    for (i=0;i<4;i++)
+    {
+        if (Programma.programmaContainer[i])
+        {
+            strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
+            strutturaDispositivo[indice]->IDdispositivo=0x23+i;
+            strutturaDispositivo[indice]->nomeFile=Programma.nomeFileContainer;
+            indice++;
+            dispositivoSelezionato=true;
         }
     }
 
@@ -754,29 +780,6 @@ bool MainWindow::dispositivoSel()
         }
     }
 
-    for (i=0;i<32;i++)
-    {
-        if (Programma.programmaAttuatori[i])
-        {
-            strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
-            strutturaDispositivo[indice]->IDdispositivo=i+1;
-            strutturaDispositivo[indice]->nomeFile=Programma.nomeFileAttuatori;
-            indice++;
-            dispositivoSelezionato=true;
-        }
-    }
-
-    for (i=0;i<4;i++)
-    {
-        if (Programma.programmaContainer[i])
-        {
-            strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
-            strutturaDispositivo[indice]->IDdispositivo=0x23+i;
-            strutturaDispositivo[indice]->nomeFile=Programma.nomeFileContainer;
-            indice++;
-            dispositivoSelezionato=true;
-        }
-    }
 
     if (Programma.programmaAutocap)
     {
@@ -801,6 +804,15 @@ bool MainWindow::dispositivoSel()
         strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
         strutturaDispositivo[indice]->IDdispositivo=0x2B;
         strutturaDispositivo[indice]->nomeFile=Programma.nomeFileHumidifier;
+        indice++;
+        dispositivoSelezionato=true;
+    }
+
+    if (Programma.programmaTinting)
+    {
+        strutturaDispositivo[indice]=new STRUTTURA_DISPOSITIVO;
+        strutturaDispositivo[indice]->IDdispositivo=0x2C;
+        strutturaDispositivo[indice]->nomeFile=Programma.nomeFileTinting;
         indice++;
         dispositivoSelezionato=true;
     }
@@ -1408,6 +1420,7 @@ void MainWindow::gestisciStatoProgram()
         ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
         sottoStatoOperazioni=2;
 */
+
         // qui costruisco il file JSON e lancio il file batch
         // per prima cosa costruisco il file json - il processo python si aspetta di trovare il file json nella stessa
         // directory in cui si trova lui
@@ -1420,7 +1433,7 @@ void MainWindow::gestisciStatoProgram()
             oggettoInserito["operazione"]="program";
             oggettoInserito["indSeriale"]=strutturaDispositivo[i]->IDdispositivo;
             oggettoInserito["nomeFile"]=strutturaDispositivo[i]->nomeFile;
-            Stringa="operazione"+ Stringa1.sprintf("%d",i+1);
+            Stringa="operazione"+ Stringa1.sprintf("%02d",i+1);
             i++;
             oggettoRoot.insert(Stringa,oggettoInserito);
             nomeOperazione=Stringa;
@@ -1768,7 +1781,7 @@ void MainWindow::printOutput()
     QString Stringa;
     QString Stringa1;
     uint32_t i;
-    QJsonObject oggetto;
+    static QJsonObject oggetto;
 
     // in questo evento devo andare a vedere cosa viene scritto in modo da poter far avanzare il processo
     switch (statoOperazioni)
@@ -1810,7 +1823,7 @@ void MainWindow::printOutput()
                         else
                         {
                             Stringa1="";
-                            ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%d",oggetto["indSeriale"].toInt())+ " terminato\n");
+                            ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%02d",oggetto["indSeriale"].toInt())+ " terminato\n");
                         }
                         ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
                         illuminaCheckBox(oggetto["indSeriale"].toInt());
@@ -1830,7 +1843,7 @@ void MainWindow::printOutput()
                         else
                         {
                             Stringa1="";
-                            ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%d",(int)oggetto["indSeriale"].toInt())+ " iniziato\n");
+                            ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%02d",(int)oggetto["indSeriale"].toInt())+ " iniziato\n");
                         }
                         ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
 
@@ -1858,7 +1871,7 @@ void MainWindow::printOutput()
                     else
                     {
                         Stringa1="";
-                        ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%d",(int)oggetto["indSeriale"].toInt())+ " iniziato\n");
+                        ui->txtStato->append("Processo erase per l'attuatore "+Stringa1.sprintf("%02d",(int)oggetto["indSeriale"].toInt())+ " iniziato\n");
                     }
                     ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
                 }
@@ -2000,7 +2013,7 @@ void MainWindow::printOutput()
                     else
                     {
                         Stringa1="";
-                        ui->txtStato->append("Processo programmazione per l'attuatore "+Stringa1.sprintf("%d",oggetto["indSeriale"].toInt())+ " iniziato\n");
+                        ui->txtStato->append("Processo programmazione per l'attuatore "+Stringa1.sprintf("%d",oggetto["indSeriale"].toInt())+ " terminato con errore\n");
                     }
                     ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
                 }
@@ -2711,4 +2724,55 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
 void MainWindow::timKeyboardScaduto()
 {
     RilevaSequenzaKeyboard = false;
+}
+
+void MainWindow::on_btnSelezionaHexTinting_clicked()
+{
+    if (caricaFile("Apri programma tinting",&Programma.nomeFileTinting,"per Tinting"))
+    {
+        ui->btnSelezionaHexTinting->setStyleSheet("background-color: green");
+    }
+    else
+    {
+        ui->btnSelezionaHexTinting->setStyleSheet("background-color: rgb(225,225,225,255)");
+    }
+}
+
+void MainWindow::on_btnSelezionaTuttoTinting_clicked()
+{
+    ui->chkTinting->setCheckState(Qt::Checked);
+
+}
+
+void MainWindow::on_btnAnnullaSelezioneTinting_clicked()
+{
+    ui->chkTinting->setCheckState(Qt::Unchecked);
+
+    Programma.programmaTinting=false;
+
+    Programma.nomeFileTinting="";
+    ui->btnSelezionaHexTinting->setStyleSheet("background-color: rgb(225,225,225,255)");
+
+}
+
+void MainWindow::on_chkTinting_stateChanged(int arg1)
+{
+    QString Stringa;
+    QString Stringa1;
+
+    Stringa=ui->txtStato->toPlainText();
+    if (ui->chkTinting->checkState()==Qt::Checked)
+    {
+        Stringa1.sprintf("Aggiunto Tinting\n");
+        Programma.programmaTinting=true;
+    }
+    else
+    {
+        Stringa1.sprintf("Eliminato Tinting\n");
+        Programma.programmaTinting=false;
+    }
+    Stringa+=Stringa1;
+    ui->txtStato->setText(Stringa);
+    ui->txtStato->moveCursor(QTextCursor::End,QTextCursor::MoveAnchor);
+
 }

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>809</width>
-    <height>613</height>
+    <width>1303</width>
+    <height>736</height>
    </rect>
   </property>
   <property name="palette">
@@ -58,10 +58,10 @@
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>30</x>
       <y>10</y>
-      <width>411</width>
-      <height>111</height>
+      <width>501</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -75,7 +75,7 @@
       <rect>
        <x>10</x>
        <y>20</y>
-       <width>91</width>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -89,9 +89,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>110</x>
+       <x>130</x>
        <y>20</y>
-       <width>91</width>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -105,9 +105,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>210</x>
+       <x>250</x>
        <y>20</y>
-       <width>91</width>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -121,9 +121,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>310</x>
+       <x>370</x>
        <y>20</y>
-       <width>91</width>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -135,8 +135,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>70</y>
-       <width>91</width>
+       <y>90</y>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -150,9 +150,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>110</x>
-       <y>70</y>
-       <width>91</width>
+       <x>130</x>
+       <y>90</y>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -166,9 +166,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>210</x>
-       <y>70</y>
-       <width>91</width>
+       <x>250</x>
+       <y>90</y>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -182,9 +182,9 @@
      </property>
      <property name="geometry">
       <rect>
-       <x>310</x>
-       <y>70</y>
-       <width>91</width>
+       <x>370</x>
+       <y>90</y>
+       <width>111</width>
        <height>31</height>
       </rect>
      </property>
@@ -196,10 +196,10 @@
    <widget class="QGroupBox" name="groupBox_2">
     <property name="geometry">
      <rect>
-      <x>430</x>
+      <x>610</x>
       <y>10</y>
-      <width>181</width>
-      <height>111</height>
+      <width>271</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -209,8 +209,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>50</y>
-       <width>61</width>
+       <y>70</y>
+       <width>71</width>
        <height>17</height>
       </rect>
      </property>
@@ -224,10 +224,10 @@
     <widget class="QPushButton" name="btnSelezionaHexMAB">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>150</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -240,10 +240,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneMAB">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>150</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -256,10 +256,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoMAB">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>150</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -273,10 +273,10 @@
    <widget class="QGroupBox" name="groupBox_3">
     <property name="geometry">
      <rect>
-      <x>620</x>
-      <y>10</y>
-      <width>181</width>
-      <height>111</height>
+      <x>20</x>
+      <y>170</y>
+      <width>291</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -285,10 +285,10 @@
     <widget class="QPushButton" name="btnSelezionaHexAssi">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>170</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -301,10 +301,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneAssi">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>170</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -318,8 +318,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>40</y>
-       <width>60</width>
+       <y>60</y>
+       <width>91</width>
        <height>17</height>
       </rect>
      </property>
@@ -331,8 +331,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>60</y>
-       <width>60</width>
+       <y>80</y>
+       <width>91</width>
        <height>17</height>
       </rect>
      </property>
@@ -343,10 +343,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoAssi">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>170</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -360,10 +360,10 @@
    <widget class="QGroupBox" name="groupBox_4">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>130</y>
-      <width>181</width>
-      <height>111</height>
+      <x>320</x>
+      <y>170</y>
+      <width>271</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -372,10 +372,10 @@
     <widget class="QPushButton" name="btnSelezionaHexCover">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>150</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -388,10 +388,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneCover">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>150</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -405,8 +405,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>40</y>
-       <width>60</width>
+       <y>60</y>
+       <width>91</width>
        <height>17</height>
       </rect>
      </property>
@@ -421,8 +421,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>60</y>
-       <width>60</width>
+       <y>80</y>
+       <width>91</width>
        <height>17</height>
       </rect>
      </property>
@@ -436,10 +436,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoCover">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>150</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -454,9 +454,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
-      <width>791</width>
-      <height>111</height>
+      <y>320</y>
+      <width>1161</width>
+      <height>131</height>
      </rect>
     </property>
     <property name="title">
@@ -465,10 +465,10 @@
     <widget class="QPushButton" name="btnSelezionaHexAttuatori">
      <property name="geometry">
       <rect>
-       <x>680</x>
-       <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <x>1040</x>
+       <y>10</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -481,10 +481,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneAttuatori">
      <property name="geometry">
       <rect>
-       <x>680</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>1040</x>
+       <y>90</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -497,10 +497,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoAttuatori">
      <property name="geometry">
       <rect>
-       <x>680</x>
+       <x>1040</x>
        <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -514,10 +514,10 @@
    <widget class="QGroupBox" name="groupBox_6">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>130</y>
-      <width>291</width>
-      <height>111</height>
+      <x>600</x>
+      <y>170</y>
+      <width>411</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -526,10 +526,10 @@
     <widget class="QPushButton" name="btnSelezionaHexContainer">
      <property name="geometry">
       <rect>
-       <x>190</x>
+       <x>290</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -542,10 +542,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneContainer">
      <property name="geometry">
       <rect>
-       <x>190</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>290</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -558,9 +558,9 @@
     <widget class="QCheckBox" name="chkContainer1">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>40</y>
-       <width>71</width>
+       <x>20</x>
+       <y>60</y>
+       <width>121</width>
        <height>17</height>
       </rect>
      </property>
@@ -571,9 +571,9 @@
     <widget class="QCheckBox" name="chkContainer2">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>60</y>
-       <width>71</width>
+       <x>20</x>
+       <y>80</y>
+       <width>121</width>
        <height>17</height>
       </rect>
      </property>
@@ -584,9 +584,9 @@
     <widget class="QCheckBox" name="chkContainer3">
      <property name="geometry">
       <rect>
-       <x>90</x>
-       <y>40</y>
-       <width>71</width>
+       <x>150</x>
+       <y>60</y>
+       <width>121</width>
        <height>17</height>
       </rect>
      </property>
@@ -597,9 +597,9 @@
     <widget class="QCheckBox" name="chkContainer4">
      <property name="geometry">
       <rect>
-       <x>90</x>
-       <y>60</y>
-       <width>71</width>
+       <x>150</x>
+       <y>80</y>
+       <width>121</width>
        <height>17</height>
       </rect>
      </property>
@@ -610,10 +610,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoContainer">
      <property name="geometry">
       <rect>
-       <x>190</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>290</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -627,10 +627,10 @@
    <widget class="QGroupBox" name="groupBox_7">
     <property name="geometry">
      <rect>
-      <x>500</x>
-      <y>130</y>
-      <width>181</width>
-      <height>111</height>
+      <x>1020</x>
+      <y>170</y>
+      <width>261</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -640,8 +640,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>50</y>
-       <width>61</width>
+       <y>70</y>
+       <width>101</width>
        <height>17</height>
       </rect>
      </property>
@@ -652,10 +652,10 @@
     <widget class="QPushButton" name="btnSelezionaHexAutocap">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>140</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -668,10 +668,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneAutocap">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>140</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -684,84 +684,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoAutocap">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">background-color: rgb(225, 225, 225);</string>
-     </property>
-     <property name="text">
-      <string>Seleziona tutto</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QGroupBox" name="groupBox_8">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>370</y>
-      <width>181</width>
-      <height>111</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Programmazione canlifter</string>
-    </property>
-    <widget class="QCheckBox" name="chkCanLifter">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>50</y>
-       <width>61</width>
-       <height>17</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Canlifter</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="btnSelezionaHexCanLifter">
-     <property name="geometry">
-      <rect>
-       <x>80</x>
-       <y>20</y>
-       <width>91</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">background-color: rgb(225, 225, 225);</string>
-     </property>
-     <property name="text">
-      <string>Apri file hex</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="btnAnnullaSelezioneCanLifter">
-     <property name="geometry">
-      <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">background-color: rgb(225, 225, 225);</string>
-     </property>
-     <property name="text">
-      <string>Annulla selezione</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="btnSelezionaTuttoCanLifter">
-     <property name="geometry">
-      <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>140</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -775,10 +701,10 @@
    <widget class="QGroupBox" name="groupBox_9">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>370</y>
-      <width>181</width>
-      <height>111</height>
+      <x>270</x>
+      <y>460</y>
+      <width>261</width>
+      <height>141</height>
      </rect>
     </property>
     <property name="title">
@@ -788,8 +714,8 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>50</y>
-       <width>61</width>
+       <y>70</y>
+       <width>111</width>
        <height>17</height>
       </rect>
      </property>
@@ -800,10 +726,10 @@
     <widget class="QPushButton" name="btnSelezionaHexHumidifier">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>140</x>
        <y>20</y>
-       <width>91</width>
-       <height>21</height>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -816,10 +742,10 @@
     <widget class="QPushButton" name="btnAnnullaSelezioneHumidifier">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>80</y>
-       <width>91</width>
-       <height>21</height>
+       <x>140</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -832,10 +758,10 @@
     <widget class="QPushButton" name="btnSelezionaTuttoHumidifier">
      <property name="geometry">
       <rect>
-       <x>80</x>
-       <y>50</y>
-       <width>91</width>
-       <height>21</height>
+       <x>140</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -850,8 +776,8 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>490</y>
-      <width>781</width>
+      <y>610</y>
+      <width>1261</width>
       <height>111</height>
      </rect>
     </property>
@@ -859,9 +785,9 @@
    <widget class="QProgressBar" name="progressBar">
     <property name="geometry">
      <rect>
-      <x>390</x>
-      <y>420</y>
-      <width>381</width>
+      <x>950</x>
+      <y>540</y>
+      <width>311</width>
       <height>23</height>
      </rect>
     </property>
@@ -872,10 +798,10 @@
    <widget class="QPushButton" name="btnClearLog">
     <property name="geometry">
      <rect>
-      <x>700</x>
-      <y>460</y>
-      <width>91</width>
-      <height>21</height>
+      <x>1160</x>
+      <y>570</y>
+      <width>101</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -883,6 +809,174 @@
     </property>
     <property name="text">
      <string>Clear log</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_10">
+    <property name="geometry">
+     <rect>
+      <x>540</x>
+      <y>460</y>
+      <width>241</width>
+      <height>141</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Programmazione tinting</string>
+    </property>
+    <widget class="QCheckBox" name="chkTinting">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>70</y>
+       <width>81</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Tinting</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnSelezionaHexTinting">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>20</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Apri file hex</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnAnnullaSelezioneTinting">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Annulla selezione</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnSelezionaTuttoTinting">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Seleziona tutto</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_8">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>460</y>
+      <width>251</width>
+      <height>141</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Programmazione canlifter</string>
+    </property>
+    <widget class="QCheckBox" name="chkCanLifter">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>70</y>
+       <width>101</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Canlifter</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnSelezionaHexCanLifter">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>20</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Apri file hex</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnAnnullaSelezioneCanLifter">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>100</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Annulla selezione</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnSelezionaTuttoCanLifter">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>60</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: rgb(225, 225, 225);</string>
+     </property>
+     <property name="text">
+      <string>Seleziona tutto</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QLabel" name="lblVersione">
+    <property name="geometry">
+     <rect>
+      <x>910</x>
+      <y>30</y>
+      <width>181</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>TextLabel</string>
     </property>
    </widget>
   </widget>

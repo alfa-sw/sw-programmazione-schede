@@ -22,6 +22,8 @@ typedef struct
     QString nomeFileCanLifter;
     bool programmaHumidifier;
     QString nomeFileHumidifier;
+    bool programmaTinting;
+    QString nomeFileTinting;
 
 } STRUTTURA_PROGRAMMA;
 

@@ -1,0 +1,29 @@
+*.DS_Store
+*.pyc
+*.egg-info
+*.proj
+*~
+IPython_crash_report.txt
+wsgi.log
+
+*__pycache__*
+_H_*
+
+*.pyc
+*.hex
+*.map
+*.cof
+*.o
+*.log*
+
+*.diff
+# ~ git.diff
+# ~ .git.diff
+# ~ .git.*.diff
+
+__tmp__*
+docs/*.html
+
+package-lock.json
+
+*.secret

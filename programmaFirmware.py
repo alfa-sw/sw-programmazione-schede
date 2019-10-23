@@ -7,9 +7,13 @@ import sys
 import threading
 import math
 import os
+import logging
+import traceback
 from time import sleep
 import json
 import os.path
+
+# ~ os.environ['PYUSB_DEBUG'] = 'debug'
 
 import usb.core
 import usb.util
@@ -73,7 +77,7 @@ class programmaFirmware():
     bytesPerAddress = 0
 
     def spedisciUSB(self, dispositivoBoot, dati, timeout, numCaratteri):
-        dispositivoBoot.set_configuration()
+        # ~ dispositivoBoot.set_configuration()
         cfg = dispositivoBoot.get_active_configuration()
         intf = cfg[(0, 0)]
         ep = usb.util.find_descriptor(
@@ -86,10 +90,13 @@ class programmaFirmware():
         # adesso spedisco il comando di reset e mi aspetto la risposta
         try:
             ret = dispositivoBoot.write(ep, dati, timeout)
-        except Exception:
+        except Exception as exc:
+            logging.error(traceback.format_exc())
             return
 
-        if ret != numCaratteri+1:
+        # ~ if ret != numCaratteri+1:
+        if ret != numCaratteri:
+            logging.error("timeout:{}, ret:{}, numCaratteri:{}".format(timeout, ret, numCaratteri))
             return
 
         return ret
@@ -120,9 +127,10 @@ class programmaFirmware():
             return
 
         # adesso aspetto che il bootloader mi risponda alla query
-        if ret == 65:
+        # ~ if ret == 65:
+        if ret == 64:
             # ha trasmesso corretto - adesso aspetto la risposta
-            dispositivoBoot.set_configuration()
+            # ~ dispositivoBoot.set_configuration()
             cfg = dispositivoBoot.get_active_configuration()
             intf = cfg[(0, 0)]
             ep = usb.util.find_descriptor(
@@ -134,18 +142,21 @@ class programmaFirmware():
 
             try:
                 rawData = dispositivoBoot.read(ep, 64, timeout)
-            except:
+            except Exception as exc:
+                logging.error(traceback.format_exc())
                 return
 
             if len(rawData) != 64:
+                logging.error("len(rawData):{}".format(len(rawData)))
                 return
         else:
+            logging.error("ret:{}".format(ret))
             return
 
         return rawData
 
     def spedisciRead(self, dispositivoBoot):
-        dispositivoBoot.set_configuration()
+        # ~ dispositivoBoot.set_configuration()
         cfg = dispositivoBoot.get_active_configuration()
         intf = cfg[(0, 0)]
         ep = usb.util.find_descriptor(
@@ -464,7 +475,8 @@ class programmaFirmware():
 
                 try:
                     rawDataAnswer = dispositivoBoot.read(ep, 64, 10000)
-                except:
+                except Exception as exc:
+                    logging.error(traceback.format_exc())
                     return
 
                 if len(rawDataAnswer) != 64:
@@ -892,7 +904,7 @@ class programmaFirmware():
 
         return 1
 
-    def letturaHex(self, dispositivoBoot, idDispositivo, nomeFile):
+    def letturaHex(self, dispositivoBoot, idDispositivo, nomeFile, timeout=1000):
         # in questa funzione mi collego alla mab e leggo il file HEX
         # per prima cosa devo spedire una query al dispositivo per avere informazioni sullo stesso
         packetsWritten = 0
@@ -905,7 +917,8 @@ class programmaFirmware():
 
         self.memoryRegion.clear()
 
-        rawDataAnswer = self.spedisciQuery(dispositivoBoot, idDispositivo, 1000)
+        rawDataAnswer = self.spedisciQuery(dispositivoBoot, idDispositivo, timeout)
+        logging.warning('rawDataAnswer:{}'.format(rawDataAnswer))
         if rawDataAnswer is None:
             return
 
@@ -1040,7 +1053,7 @@ class programmaFirmware():
 
                 addressToRequest += int(self.bytesPerPacket/self.bytesPerAddress)
 
-                dispositivoBoot.set_configuration()
+                # ~ dispositivoBoot.set_configuration()
                 cfg = dispositivoBoot.get_active_configuration()
                 intf = cfg[(0, 0)]
                 ep = usb.util.find_descriptor(
@@ -1052,7 +1065,8 @@ class programmaFirmware():
 
                 try:
                     rawDataAnswer = dispositivoBoot.read(ep, 64, 2000)
-                except:
+                except Exception as exc:
+                    logging.error(traceback.format_exc())
                     return
 
                 if len(rawDataAnswer) != 64:
@@ -1092,6 +1106,8 @@ class programmaFirmware():
 
         # a questo punto la memoria letta devo tradurla in un file Hex
         fileHex = open(nomeFile, 'wb')
+
+        logging.warning('fileHex :{}'.format(fileHex ))
 
         for currentMemoryRegion in range(0, self.memoryRegionsDetected):
             fileHex.write(self.pData[currentMemoryRegion])
@@ -1302,9 +1318,75 @@ def funzioneMain(fileName = ".//fileOperazioni.json"):
         print("Error - il file JSON non esiste!\n", flush=True)
 
 
+
+
+def set_logging(log_level):
+    fmt_ = logging.Formatter('[%(asctime)s]'
+                             '%(name)s:'
+                             '%(levelname)s:'
+                             '%(funcName)s() '
+                             '%(filename)s:'
+                             '%(lineno)d: '
+                             '%(message)s ')
+
+    ch = logging.StreamHandler()
+    ch.setFormatter(fmt_)
+    logger_ = logging.getLogger()
+    logger_.handlers = []
+    logger_.addHandler(ch)
+    logger_.setLevel(log_level)
+
+
+def dummy():
+    
+    set_logging('WARNING')
+
+    p_ = programmaFirmware()
+    dev = p_.connettiDispositivo()
+
+
+    # ~ dev.reset()
+    reattach = False
+    if dev.is_kernel_driver_active(0):
+        logging.warning("kernel_driver_is_active")
+        reattach = True
+        dev.detach_kernel_driver(0)
+        
+    time.sleep(0.2)
+    
+    dev.set_configuration()
+    cfg = dev.get_active_configuration()
+    logging.warning("cfg:{}".format(cfg))
+
+    time.sleep(0.2)
+    r = p_.letturaHex(dev, 255, "./__temp__.bin")
+    logging.warning("r:{}".format(r))
+
+    # ~ for i in (255, ):
+        # ~ rawDataAnswer = p_.spedisciQuery(dev, i, 1000)
+        # ~ logging.warning("i:{} rawDataAnswer:{}".format(i, rawDataAnswer))
+    
+    # ~ dev = usb.core.find(idVendor=0x04d8, idProduct=0xe89b)
+    
+    # ~ for cfg in dev:
+        # ~ logging.warning("cfg.bConfigurationValue:{}".format(cfg.bConfigurationValue))
+        # ~ for intf in cfg:
+            # ~ logging.warning("\t intf.bInterfaceNumber:{}, intf.bAlternateSetting:{}".format(intf.bInterfaceNumber, intf.bAlternateSetting))
+            # ~ for ep in intf:
+                # ~ logging.warning("\t\t ep.bEndpointAddress:{}".format(ep.bEndpointAddress))
+
+    if reattach:
+        dev.attach_kernel_driver(0)
+
+
 if __name__ == '__main__':
 
     fileName = ".//fileOperazioni.json"
     if sys.argv[:1]:
-        fileName = sys.argv[:1]
+        if sys.argv[1] == 'dummy':
+            dummy()
+            sys.exit(0)
+        else:
+            fileName = sys.argv[1]
     funzioneMain(fileName)
+

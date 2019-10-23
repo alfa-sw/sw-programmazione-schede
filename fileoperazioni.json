@@ -1,7 +1,7 @@
 {
     "operazione1": {
-        "indSeriale": 14,
-        "nomeFile": "",
-        "operazione": "erase"
+        "indSeriale": 255,
+        "nomeFile": "MABrd.bin",
+        "operazione": "read"
     }
 }

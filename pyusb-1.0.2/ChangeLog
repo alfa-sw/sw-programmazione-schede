@@ -1,0 +1,30 @@
+Author: Wander Lairson Costa
+    Update to version 1.0.2
+
+Author: Wander Lairson Costa
+    Add deploy script for automated deployment.
+    
+    * tag new version
+    * generate sdist package
+    * push to git
+    * push to pypi
+    * clean up
+
+Author: Wander Lairson Costa
+    Revert "[ADD] pyusb module to satisfy setuptools"
+    
+    This reverts commit da20a0bab3bbf6b3970faf6d1e007161b7c82a52.
+
+Author: Wander Lairson Costa
+    Merge pull request #167 from James-Dengel/wheels
+    
+    enable building as a wheel by using setuptools
+Author: Wander Lairson Costa
+    Merge pull request #189 from Therp/master-rename-pyusb
+    
+    [ADD] pyusb module to satisfy setuptools
+Author: Holger Brunn
+    [ADD] pyusb module to satisfy setuptools
+
+Author: James Dengel
+    enable building as a wheel by using setuptools

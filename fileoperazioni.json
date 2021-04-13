@@ -1,7 +1,7 @@
 {
-    "operazione1": {
-        "indSeriale": 14,
-        "nomeFile": "",
-        "operazione": "erase"
+    "operazione01": {
+        "indSeriale": 44,
+        "nomeFile": "S:/Firmware/BootLoader/MACCHINE PRODUZIONE/THOR/MASTER TINTING THOR 2.0/Master_Tinting-boot-nodipswitch.hex",
+        "operazione": "program"
     }
 }

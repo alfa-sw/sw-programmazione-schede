@@ -65,7 +65,6 @@ class programmaFirmware():
     bytesPerAddress=0
     
     def spedisciUSB(self,dispositivoBoot,dati,timeout,numCaratteri):
-        dispositivoBoot.set_configuration()
         cfg = dispositivoBoot.get_active_configuration()
         intf = cfg[(0,0)]
         ep = usb.util.find_descriptor(
@@ -77,12 +76,9 @@ class programmaFirmware():
             usb.util.ENDPOINT_OUT)
 
         #adesso spedisco il comando di reset e mi aspetto la risposta
-        try:
-            ret=dispositivoBoot.write(ep,dati,timeout)
-        except Exception:
-            return
+        ret=dispositivoBoot.write(ep,dati,timeout)
     
-        if ret!=numCaratteri+1:
+        if ret!=numCaratteri: 
             return
     
         return ret
@@ -104,18 +100,18 @@ class programmaFirmware():
             self.rawData[i+1]=self.pwd[i]
     
         self.rawData[9]=dispositivoID #ID della MAB    
-        for i in range(10,64):
+        for i in range(10,63):
             self.rawData[i]=0
     
         #adesso devo spedire il comando di query ed attendere che il bootloader mi risponda
-        ret=self.spedisciUSB(dispositivoBoot, self.rawData, 1000, len(self.rawData))
+        ret=self.spedisciUSB(dispositivoBoot, self.rawData, 10000, len(self.rawData))
         if ret is None:
             return
     
         #adesso aspetto che il bootloader mi risponda alla query
-        if ret==65:
+        if ret==64:
             #ha trasmesso corretto - adesso aspetto la risposta
-            dispositivoBoot.set_configuration()
+            #dispositivoBoot.set_configuration()
             cfg = dispositivoBoot.get_active_configuration()
             intf = cfg[(0,0)]
             ep = usb.util.find_descriptor(
@@ -125,11 +121,9 @@ class programmaFirmware():
                 lambda e: \
                 usb.util.endpoint_direction(e.bEndpointAddress) == \
                 usb.util.ENDPOINT_IN)
-        
-            try:
-                rawData=dispositivoBoot.read(ep,64,timeout)
-            except:
-                return
+
+            
+            rawData=dispositivoBoot.read(ep,64,timeout)
         
             if len(rawData)!=64:
                 return
@@ -165,7 +159,7 @@ class programmaFirmware():
         #adesso devo spedire il comando di erase
         self.rawData[0]=0x04   # comando di erase
     
-        for i in range(1,64):
+        for i in range(1,63):
             self.rawData[i]=0
     
         ret=self.spedisciUSB(dispositivoBoot, self.rawData, 1000, len(rawData))
@@ -443,7 +437,6 @@ class programmaFirmware():
                 packetsWritten+=1
                 addressToRequest+=int(self.bytesPerPacket/self.bytesPerAddress)
                 
-                dispositivoBoot.set_configuration()
                 cfg = dispositivoBoot.get_active_configuration()
                 intf = cfg[(0,0)]
                 ep = usb.util.find_descriptor(
@@ -453,12 +446,9 @@ class programmaFirmware():
                     lambda e: \
                     usb.util.endpoint_direction(e.bEndpointAddress) == \
                     usb.util.ENDPOINT_IN)
-        
-                try:
-                    rawDataAnswer=dispositivoBoot.read(ep,64,10000)
-                except:
-                    return
-                
+
+                rawDataAnswer=dispositivoBoot.read(ep,64,10000)
+
                 if len(rawDataAnswer)!=64:
                     return
                 
@@ -1040,10 +1030,7 @@ class programmaFirmware():
                     usb.util.endpoint_direction(e.bEndpointAddress) == \
                     usb.util.ENDPOINT_IN)
         
-                try:
-                    rawDataAnswer=dispositivoBoot.read(ep,64,2000)
-                except:
-                    return
+                rawDataAnswer=dispositivoBoot.read(ep,64,2000)
                 
                 if len(rawDataAnswer)!=64:
                     return
@@ -1176,7 +1163,7 @@ class leggiOperazioni():
         return data
 
 def funzioneMain():
-    fileName=".//fileOperazioni.json"
+    fileName="./fileOperazioni.json"
     nomeFileProgram=""
     if os.path.isfile(fileName):
         sampleDevice=programmaFirmware()
@@ -1288,16 +1275,3 @@ def funzioneMain():
     
 if __name__ == '__main__':
     funzioneMain()        
-        
-        
-        
-        
-    
-
-
-
-
-        
-        
-
-    

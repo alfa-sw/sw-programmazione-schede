@@ -1,9 +1,24 @@
-from intelhex import IntelHex
-import pprint
+""" 
+Utilities to handle Intel Hex format. 
+
+Keep in mind that Hex is a dictionary [address] -> data. In order to
+get a "binary" (array of bytes representing the whole program) you need to
+fill missing addresses.
+
+"""
 import logging
 
 class HexUtils:
-    def load_mplab_table(filename):
+    def load_mplab_table(filename: str) -> list:
+        """ load binary array from the table exported from MPLAB IPE to file.
+        The table should be exported in this way:
+        1. setup and connect
+        2. click "read" button
+        3. Window -> Target Memory Views -> Program view (note that
+        you need to tinker with settings in order to see this menu item)
+        4. on the table, right click -> Output to file
+        """
+        
         str2hex = lambda s: int(s, 16)
         pData = {}
         
@@ -23,7 +38,9 @@ class HexUtils:
                     j = j + 4
         return pData
 
-    def dict_to_array(src, size = None):
+    def dict_to_array(src: dict, size = None) -> list:
+        """ get the array of bytes from a dictionary address """
+        
         if size is None:
             size = max(src.keys())
 
@@ -39,6 +56,8 @@ class HexUtils:
         return out
         
     def load_hex_file_to_dict(filename):
+        """ get the dictionary from an hex file. """
+            
         HEX_FILE_EXTENDED_LINEAR_ADDRESS = 0x04
         HEX_FILE_EOF = 0x01
         HEX_FILE_DATA = 0x00
@@ -87,10 +106,17 @@ class HexUtils:
         return pData
 
     def load_hex_file_to_array(filename):
+        """ get binary from an hex file. """
         dic = HexUtils.load_hex_file_to_dict(filename)
         return HexUtils.dict_to_array(dic)
 
 if __name__ == '__main__':
+    # IntelHex library is used to check correctness of the function
+    # load_hex_file_to_dict()
+    from intelhex import IntelHex
+    
+    import pprint
+
     for f in ['Master_Tinting-boot-nodipswitch.hex',
               'pump-r1-siboot-dipswitch.hex']:
 
@@ -99,11 +125,11 @@ if __name__ == '__main__':
 
         print("loading hex with IntelHex lib...")
         ih = IntelHex()
-        ih.loadhex('Master_Tinting-boot-nodipswitch.hex')
+        ih.loadhex(f)
         dict2 = ih.todict() 
 
         print("loading hex with my funct...")
-        dict3 = HexUtils.load_hex_file_to_dict('Master_Tinting-boot-nodipswitch.hex')
+        dict3 = HexUtils.load_hex_file_to_dict(f)
 
         print("converting arrays...")
         array1 = HexUtils.dict_to_array(dict1, len(dict1))

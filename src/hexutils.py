@@ -2,7 +2,7 @@
 Utilities to handle Intel Hex format. 
 
 Keep in mind that Hex is a dictionary [address] -> data. In order to
-get a "binary" (array of bytes representing the whole program) you need to
+get a "binary" (array of bytes representing the whole program) we need to
 fill missing addresses.
 
 """
@@ -110,32 +110,4 @@ class HexUtils:
         dic = HexUtils.load_hex_file_to_dict(filename)
         return HexUtils.dict_to_array(dic)
 
-if __name__ == '__main__':
-    # IntelHex library is used to check correctness of the function
-    # load_hex_file_to_dict()
-    from intelhex import IntelHex
-    
-    import pprint
-
-    for f in ['Master_Tinting-boot-nodipswitch.hex',
-              'pump-r1-siboot-dipswitch.hex']:
-
-        print("loading mplab table...")
-        dict1 = HexUtils.load_mplab_table('TABLE_from_MPLAB_IPE.txt')
-
-        print("loading hex with IntelHex lib...")
-        ih = IntelHex()
-        ih.loadhex(f)
-        dict2 = ih.todict() 
-
-        print("loading hex with my funct...")
-        dict3 = HexUtils.load_hex_file_to_dict(f)
-
-        print("converting arrays...")
-        array1 = HexUtils.dict_to_array(dict1, len(dict1))
-        array2 = HexUtils.dict_to_array(dict2, len(dict1))
-        array3 = HexUtils.dict_to_array(dict3, len(dict1))
-
-        assert array1 == array2
-        assert array2 == array3
 

@@ -314,7 +314,7 @@ class USBManager:
 class USBFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
     
-    def __init__(self, deviceId):
+    def __init__(self, deviceId = 0xff):
         try:
             self.usb = USBManager(deviceId)
         except:

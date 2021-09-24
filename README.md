@@ -1,6 +1,11 @@
 # alfa_fw_upgrader
-alfa_fw_upgrader is an application to program Alfa PIC based boards using
-USB based bootloader.
+alfa_fw_upgrader is a project to program the boards based on PIC 24.
+These boards have a bootloader featuring a set of commands on USB to program
+and verify the memory.  
+
+It provides a command-line application, but it is also a module with classes
+that can be imported into other projects as a library to interact with
+the bootloader and perform memory operations.
 
 ## Installation
 
@@ -44,13 +49,13 @@ Install usb drivers.
 
 Install the application.
 
-1. install python > 3.7
+1. install python 3 (tested with 3.9)
 
 2. download repository from:
    https://github.com/alfa-sw/sw-programmazione-schede/archive/refs/heads/master.zip
    and extract to `c:\work\alfa_fw_upgrader`
 
-3. install virtual envinronment
+3. install virtual envinronment (adjust python interpreter path if needed)
 >    set PYTHON_BIN=%USERPROFILE%\AppData\Local\Programs\Python\Python39\python.exe
 >    %PYTHON_BIN% -m venv c:\work\alfa_fw_upgrader_env
 
@@ -63,4 +68,12 @@ Install the application.
 >    c:\work\alfa_fw_upgrader_env\Script\activate   
 >    alfa_fw_upgrader.py 
 
+### Notes
+In order to test the routine for hex file reading, it is required to install 
+library *hexutils*:
+
+>    pip install hexutils
+
+However the library itself is not required to run the application and therefore
+is is not a dependency of the project.
 

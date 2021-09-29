@@ -42,6 +42,7 @@ def main():
         include_package_data=True,
         scripts=[
             'bin/alfa_fw_upgrader',
+            'bin/alfa_fw_upgrader_launcher.py',
         ],
         install_requires=[
             'pyusb',

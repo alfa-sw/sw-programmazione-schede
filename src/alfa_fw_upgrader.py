@@ -22,7 +22,7 @@ Following is the first part of the Memory Table, exported from MPLAB IPE.
  
 Memory is organized in groups of 4 bytes: the first 3 bytes contains real data
 saved in the memory and is shown in the table; the last byte is called
-*phantom byte*. Any hex binary representation of a program baked from microchip
+*phantom byte*. Any hex binary representation of a program baked by microchip
 compiler contains a "0" every 3 bytes.
 
 There are only pair addresses: first group has address 0, second has address 2
@@ -41,6 +41,8 @@ a_b = 2 * a_p
 
 """
 
+import asyncio
+
 import usb.core
 import usb.util
 import struct
@@ -50,8 +52,12 @@ import argparse
 import sys
 import traceback
 
+import time
+
 from hexutils import HexUtils
 from typing import Any, NoReturn
+
+from mab_serial_lib import SerialDriver, Protocol
 
 class USBManager:
     """ This class implements the USB communication with bootloader 
@@ -92,11 +98,12 @@ class USBManager:
     USB_ID_PRODUCT = 0xe89b
     DATA_ATTACHMENT_LEN = 56
 
-    CMD_ID_QUERY = 2
-    CMD_ID_ERASE = 4
-    CMD_ID_PROGRAM = 5
-    CMD_ID_PROGRAM_COMPLETE = 6
-    CMD_ID_VERIFY = 7
+    CMD_ID_QUERY = 0x2
+    CMD_ID_ERASE = 0x4
+    CMD_ID_PROGRAM = 0x5
+    CMD_ID_PROGRAM_COMPLETE = 0x6
+    CMD_ID_VERIFY = 0x7
+    CMD_ID_BOOT_FW_VERSION_REQUEST = 0x8
     
     def __init__(self, deviceId = 0xff):
         self._usb_init()
@@ -311,21 +318,97 @@ class USBManager:
 
         return array[58 - bytesPerPacket:] 
         
-class USBFirmwareLoader:
+    def BOOT_FW_VERSION_REQUEST(self) -> NoReturn:       
+        data = struct.pack("<BB", self.CMD_ID_BOOT_FW_VERSION_REQUEST,
+          self.deviceId)
+        self._send_usb_message(data)
+        buff = self._read_usb_message(4)
+        cmd_id, version_major, version_minor, version_patch = \
+          struct.unpack("<BBBB", buff)
+
+        try:
+            assert cmd_id == self.CMD_ID_QUERY
+        except:
+            RuntimeError("Invalid data in BOOT_FW_VERSION_REQUEST response")
+            
+        return (version_major, version_minor, version_patch)
+        
+        
+class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
     
-    def __init__(self, deviceId = 0xff):
+    def __init__(self, deviceId = 0xff, serialPort = None):
         try:
             self.usb = USBManager(deviceId)
+            # with bootloader 2.0 usb seems to working
+            # but it does not respond due to hw misconfiguration,
+            # this is why this call is here and repeated above
+            address, length = self.usb.QUERY()
         except:
-            raise RuntimeError("failed to init USB device")
+            print ("serialPort=",serialPort)
+            if serialPort is not None:
+                try:        
+                    self.jump_to_boot(serialPort)
+                except:
+                    raise RuntimeError("failed to jump to boot using serial commands")
+            try:
+                self.usb = USBManager(deviceId)
+                address, length = self.usb.QUERY()
+            except:
+                raise RuntimeError("failed to init USB device")
             
-        address, length = self.usb.QUERY()
+        # boot version is retrieved by using command BOOT_FW_REQUEST
+        # however, executing this command on a bootloader not implementing it
+        # results in a deadlock
+        # TODO restore when fw is ready
+        boot_fw_version = (0,0,0) # self.usb.BOOT_FW_VERSION_REQUEST()
+        
         logging.info("Response to QUERY, address = {}, length = {}"
           .format(address, length))
+          
+        logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
+          .format(boot_fw_version))
+          
         self.starting_address = address
         self.memory_length = length
+        self.boot_fw_version = boot_fw_version        
         self.erased = False
+
+    def jump_to_boot(self, serial_filename):
+        baudrate = 115200
+        src_addr = 200
+        mode = Protocol.ProtocolMode.DUPLEX
+                
+        async def operations():
+            endpoint = SerialDriver()            
+            try: # TODO replace with 'with e as endpoint'?
+                endpoint.connect(device_name = serial_filename,
+                                 device_baudrate = baudrate)
+                
+                proto = Protocol(mode, endpoint)
+                node = proto.attach_node(src_addr)
+                
+                assert(await node.wait_for_event(
+                 node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY, 5) != None)
+
+                assert(await node.wait_for_recv_status_parameters(
+                    {"status_level": 0x06}, 15) == True)
+                
+                assert((await node.send_request_and_watch(
+                  "ENTER_DIAGNOSTIC", status_params = {"status_level": 0x07},
+                  timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS)
+
+                (result, answer_params) = await node.send_request_and_watch(
+                 "DIAG_JUMP_TO_BOOT", status_params = {"status_level": 0x09},
+                 timeout_status_sec = 5)
+                assert result == node.RequestWatchResult.SUCCESS
+                endpoint.disconnect()
+                await asyncio.sleep(5) # wait for OS and drivers to initialize
+            finally:
+                endpoint.disconnect()
+                
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(operations())
         
     def erase(self):
         """ erase application memory. """
@@ -414,7 +497,12 @@ class Application:
     DESCRIPTION = "An utility to program Alfa PIC based boards " \
                   "using USB based bootloader."
     NAME = "alfa_fw_upgrader"
-    EXAMPLE_TEXT = '''examples:
+    EXAMPLE_TEXT = '''Actions:
+- program: program the application memory with given hex file
+- verify: verify the application memory against the given hex file
+- info: get memory parameters and boot version
+
+Examples:
 
 To perform program and verify,
  > alfa_fw_upgrader -f master_tinting-boot.hex program verify
@@ -422,7 +510,7 @@ To perform program and verify,
 To perform verify only, with debug info and reset,
  > alfa_fw_upgrader -vv -f master_tinting-boot.hex verify reset'''
 
-    actions = ('program', 'verify', 'reset')
+    actions = ('info', 'program', 'verify')
 
     errors_dict = {
         "FILENAME_REQUIRED": {
@@ -444,9 +532,11 @@ To perform verify only, with debug info and reset,
             "hints": [            
                 "Check if the device is powered up and correctly connected",
                 "Check if the device is in boot mode",
-                "Check if the driver is working correctly. On windows,"
+                "Check if the driver is working correctly. On windows, "
                 "run Zadig and select WinUSB driver for this device and be "
-                "sure to have library libusb-1.0.dll in c:\Windows\System32"
+                "sure to have library libusb-1.0.dll in c:\Windows\System32",
+                "Check if the serial port is correctly plugged in and the"
+                "serial port is correct, if using bootloader '2.0'"
             ]
         },
         "ERASE_FAILED": {
@@ -485,7 +575,8 @@ To perform verify only, with debug info and reset,
         if pr_exc: 
             traceback.print_exc(file=sys.stdout)           
         exit(error_item["retcode"])
-        
+    
+
     def main(self):
         parser = argparse.ArgumentParser(
                           prog = self.NAME,
@@ -493,12 +584,22 @@ To perform verify only, with debug info and reset,
                           epilog=self.EXAMPLE_TEXT,
                           formatter_class=argparse.RawDescriptionHelpFormatter)
                            
-        parser.add_argument('-f', '--filename', dest='HEXFILENAME', type=str,
+        parser.add_argument('-f', '--filename', dest='hexfilename', type=str,
                             help='filename of the IntelHex file to load')
 
         parser.add_argument('-d', '--deviceid', dest='ID', type=int, default=255,
                             help='ID of the device (default=255)')
 
+        parser.add_argument('--serial', dest='serial', action='store_true',
+                            help="try to jump to boot using serial commands (default)")
+        parser.add_argument('--no-serial', dest='serial', action='store_false',
+                            help="do not try to jump to boot using serial commands")
+        parser.set_defaults(serial=True)
+
+        parser.add_argument('-s', '--serial-port', dest='serialport', type=str,
+                            help='serial port to use (default=/dev/ttyUSB0)',
+                            default='/dev/ttyUSB0')
+        
         parser.add_argument("-v", "--verbosity", action="count",
                             help="increase output verbosity")
 
@@ -529,21 +630,30 @@ To perform verify only, with debug info and reset,
 
         program_data = []
         if 'program' in actions or 'verify' in actions:
-            if self.args.HEXFILENAME is None:
+            if self.args.hexfilename is None:
                 self._exit_error("FILENAME_REQUIRED")
-            fn = self.args.HEXFILENAME
+            fn = self.args.hexfilename
             try:
                 program_data = HexUtils.load_hex_file_to_array(fn)
             except:
                 self._exit_error("FILE_LOAD_FAILED", fn)
 
         try:
-            ufl = USBFirmwareLoader(self.args.ID)
+            print("SERIAL=",  self.args.serial)
+            print("SERIAL=",  self.args.serialport)
+            ufl = AlfaFirmwareLoader(self.args.ID, 
+                   self.args.serialport if self.args.serial else None)
         except Exception as e:
             self._exit_error("INIT_FAILED", str(e))
         
         for a in actions:
-            if a == 'program':
+            if a == 'info':
+                print("Boot version: {}.{}.{}".format(
+                 ufl.boot_fw_version[0], ufl.boot_fw_version[1],
+                 ufl.boot_fw_version[2]))
+                print("Memory start address: {} / length: {}".format(
+                 ufl.starting_address, ufl.memory_length))
+            elif a == 'program':
                 try:
                     ufl.erase()
                 except:
@@ -561,4 +671,5 @@ To perform verify only, with debug info and reset,
                    
 if __name__ == '__main__':
     Application().main()
+
 

@@ -23,9 +23,13 @@ the bootloader and perform memory operations.
 >     $ git clone git@github.com:alfa-sw/sw-programmazione-schede.git
 >     $ git checkout develop
 
-4. build Install in edit mode:
+4. activate virtualenv:
 >     $ . ${VIRTENV_ROOT}/bin/activate
 >     $ cd ${PROJECT_ROOT}
+
+5. Install rs485_master in this virtualenv, following its README
+
+6. Install in edit mode:
 >     $ pip install -e ./
 
 5. Run:
@@ -50,7 +54,7 @@ Install usb drivers.
 
 Install the application.
 
-1. install python 3 (tested with 3.9)
+1. install python 3 (tested with 3.9) 
 
 2. download repository from:
    https://github.com/alfa-sw/sw-programmazione-schede/archive/refs/heads/develop.zip
@@ -63,6 +67,10 @@ Install the application.
 4. activate new environment and install:
 >     c:\work\alfa_fw_upgrader_env\Scripts\activate   
 >     cd c:\work\alfa_fw_upgrader
+
+5. Install rs485_master in this virtualenv, following its README
+
+6. Install in edit mode:
 >     python -m pip install -e ./
 
 5. run the program:

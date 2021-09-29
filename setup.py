@@ -46,6 +46,7 @@ def main():
         ],
         install_requires=[
             'pyusb',
+            'rs485_master'
         ],
         
         

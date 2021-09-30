@@ -1,5 +1,5 @@
 #!/usr/bin/env python
 
-from alfa_fw_upgrader import Application
+from alfa_fw_upgrader_app import Application
 
 Application().main()

@@ -145,8 +145,6 @@ class USBManager:
         assert self.ep_out is not None
         assert self.ep_in is not None
         
-        self.dev.reset()
-        
         
     def _send_usb_message(self, data, timeout = 5000):
         """ send a message to USB endpoint """

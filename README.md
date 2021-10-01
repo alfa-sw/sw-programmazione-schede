@@ -12,29 +12,34 @@ the bootloader and perform memory operations.
 ### On linux
 
 1. install libusb:
->     # apt install libusb
+>     # apt install libusb-1.0.0
 
-2. create a virtualenv 
+2. Adjust USB device permissions.
+>     # echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", MODE="0666"' > 
+>       /etc/udev/rules.d/99-microchip.rules 
+>     # /etc/init.d/udev restart
+
+3. create a virtualenv 
 >     $ export VIRTENV_ROOT=desired-virtenv_root-path
 >     $ mkdir ${VIRTENV_ROOT}
 >     $ virtualenv -p /usr/bin/python3 ${VIRTENV_ROOT}
 
-3. clone this project in ${PROJECT_ROOT}
+4. clone this project in ${PROJECT_ROOT}
 >     $ git clone git@github.com:alfa-sw/sw-programmazione-schede.git
 >     $ git checkout develop
 
-4. activate virtualenv:
+5. activate virtualenv:
 >     $ . ${VIRTENV_ROOT}/bin/activate
 >     $ cd ${PROJECT_ROOT}
 
-5. Install rs485_master in this virtualenv, following its README
+6. Install rs485_master in this virtualenv, following its README
 
-6. Install in edit mode:
+7. Install in edit mode:
 >     $ pip install -e ./
 
-5. Run:
+8. Run:
 >     $ . ${VIRTENV_ROOT}/bin/activate
->     $ alfa_fw_upgrader.py
+>     $ alfa_fw_upgrader
 
 ### On windows
 
@@ -50,7 +55,6 @@ Install usb drivers.
 
 3. follow instructions in this [link](https://github.com/pbatard/libwdi/wiki/Zadig)
    to set the driver *WinUSB* for device `USB Hid Bootloader`
-
 
 Install the application.
 

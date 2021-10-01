@@ -1,8 +1,9 @@
-from alfa_fw_upgrader import AlfaFirmwareLoader
+from alfa_fw_upgrader import AlfaFirmwareLoader, HexUtils
 
 import argparse
 import sys
 import traceback
+import logging 
 
 class Application:
     DESCRIPTION = "An utility to program Alfa PIC based boards " \

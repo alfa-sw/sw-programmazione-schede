@@ -4,6 +4,108 @@ import argparse
 import sys
 import traceback
 import logging 
+import os
+from threading import Thread
+
+import eel
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+class GUIApplication:
+    hex_available = None
+    command_retvalue = None
+
+    def _get_output(self, error_key, format_arg = None):
+        error_item = Application.errors_dict[error_key]
+        descr = error_item["descr"] if not format_arg else \
+               error_item["descr"].format(format_arg)
+        hints = ""
+        if "hints" in error_item:
+            for h in error_item["hints"]:
+                hints += "<li>" + h + "</li>"
+        text = "The following error occured during execution: <ul>"
+        text += descr + "</ul>"
+        text += f"Hints:{hints}" if hints else ""
+        
+        return text
+        
+    def process(self, setup_dict):
+        print(setup_dict)
+        
+        device_id = int(setup_dict["device_id"])
+        use_serial = setup_dict["use_serial"] 
+        action = setup_dict["action"]
+        
+        try:
+            ufl = AlfaFirmwareLoader(device_id, 
+                   setup_dict["serial_port"] if setup_dict["use_serial"] else None)
+        except Exception as e:
+            eel.stop_process_js({
+             "success": False,
+             "output": self._get_output("INIT_FAILED", str(e))})
+            return
+        if action == "info":
+            eel.stop_process_js({
+             "success": True,
+             "output": "Memory start address: {} / length: {}"
+              .format(ufl.starting_address, ufl.memory_length)
+            })
+        elif action == 'program':
+            try:
+                ufl.erase()
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("ERASE_FAILED")})
+            try:
+                ufl.program(self.program_data)
+                eel.stop_process_js({"success": True, "output": ""})
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("PROGRAM_FAILED")})
+        elif action == 'verify':
+            try:
+                if ufl.verify(self.program_data) is False:
+                    eel.stop_process_js({
+                     "success": False,
+                     "output":  self._get_output("VERIFY_DATA_MISMATCH")})
+                else:
+                    eel.stop_process_js({"success": True, "output": ""})
+            except Exception as e:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("VERIFY_FAILED", str(e))})
+
+           
+    def __init__(self):
+        self.hex_available = False
+    
+        print("** No arguments given. -h for usage details of command line "
+              "interface. Starting GUI **")
+        path = os.path.join(HERE, "../", "templates", "gui-frontend")
+        eel.init(path, allowed_extensions=['.js', '.html'])
+
+        @eel.expose  # Expose this function to Javascript
+        def say_hello_py(x):
+            print('Hello from %s' % x)
+
+        @eel.expose 
+        def process_file(file_content):
+            self.program_data = HexUtils.load_hex_to_array(file_content)
+            self.hex_available = True
+            eel.is_hex_available_js(self.hex_available)
+            
+        eel.say_hello_js('Python World!') # Call a Javascript function
+
+        @eel.expose
+        def process(setup_dict):
+            eel.start_process_js()
+            eel.spawn(self.process, setup_dict)
+            
+    def run(self):
+        eel.start('main.html', size=(100, 100))
+    
 
 class Application:
     DESCRIPTION = "An utility to program Alfa PIC based boards " \
@@ -88,7 +190,6 @@ To perform verify only, with debug info and reset,
             traceback.print_exc(file=sys.stdout)           
         exit(error_item["retcode"])
     
-
     def main(self):
         parser = argparse.ArgumentParser(
                           prog = self.NAME,
@@ -119,65 +220,73 @@ To perform verify only, with debug info and reset,
                             choices=self.actions,
                             help="actions to perform")
 
-        if len(sys.argv) < 2:
-            parser.print_help()
-            sys.exit(1)
-            
-        self.args = parser.parse_args()
+        if len(sys.argv) < 2:    
+            logging.basicConfig(
+                stream=sys.stdout, level="INFO",
+                format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                       "%(filename)s:%(lineno)d %(message)s")
+            gui = GUIApplication()
+            gui.run()
+        else:
+            self.args = parser.parse_args()
 
-        level = "ERROR"
-        if self.args.verbosity is not None:
-            if self.args.verbosity >= 2:
-                level = "DEBUG"
-            elif self.args.verbosity == 1:
-                level = "INFO"
-            
-        logging.basicConfig(
-            stream=sys.stdout, level=level,
-            format="[%(asctime)s]%(levelname)s %(funcName)s() "
-                   "%(filename)s:%(lineno)d %(message)s")
+            level = "ERROR"
+            if self.args.verbosity is not None:
+                if self.args.verbosity >= 2:
+                    level = "DEBUG"
+                elif self.args.verbosity == 1:
+                    level = "INFO"
+                
+            logging.basicConfig(
+                stream=sys.stdout, level=level,
+                format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                       "%(filename)s:%(lineno)d %(message)s")
 
-        # put actions in the right order and avoid repetitions
-        actions = [x for x in self.actions if x in self.args.actions]
+                
 
-        program_data = []
-        if 'program' in actions or 'verify' in actions:
-            if self.args.hexfilename is None:
-                self._exit_error("FILENAME_REQUIRED")
-            fn = self.args.hexfilename
+            # put actions in the right order and avoid repetitions
+            actions = [x for x in self.actions if x in self.args.actions]
+
+            program_data = []
+            if 'program' in actions or 'verify' in actions:
+                if self.args.hexfilename is None:
+                    self._exit_error("FILENAME_REQUIRED")
+                fn = self.args.hexfilename
+                try:
+                    with open(fn, 'r') as f:
+                        file_content = f.read()
+                        program_data = HexUtils.load_hex_file_to_array(fn)
+                except:
+                    self._exit_error("FILE_LOAD_FAILED", fn)
+
             try:
-                program_data = HexUtils.load_hex_file_to_array(fn)
-            except:
-                self._exit_error("FILE_LOAD_FAILED", fn)
-
-        try:
-            ufl = AlfaFirmwareLoader(self.args.ID, 
-                   self.args.serialport if self.args.serial else None)
-        except Exception as e:
-            self._exit_error("INIT_FAILED", str(e))
-        
-        for a in actions:
-            if a == 'info':
-                print("Boot version: {}.{}.{}".format(
-                 ufl.boot_fw_version[0], ufl.boot_fw_version[1],
-                 ufl.boot_fw_version[2]))
-                print("Memory start address: {} / length: {}".format(
-                 ufl.starting_address, ufl.memory_length))
-            elif a == 'program':
-                try:
-                    ufl.erase()
-                except:
-                    self._exit_error("ERASE_FAILED")                   
-                try:
-                    ufl.program(program_data)
-                except:
-                    self._exit_error("PROGRAM_FAILED")
-            elif a == 'verify':
-                try:
-                    if ufl.verify(program_data) is False:
-                        self._exit_error("VERIFY_DATA_MISMATCH")
-                except:
-                    self._exit_error("VERIFY_FAILED")
+                ufl = AlfaFirmwareLoader(self.args.ID, 
+                       self.args.serialport if self.args.serial else None)
+            except Exception as e:
+                self._exit_error("INIT_FAILED", str(e))
+            
+            for a in actions:
+                if a == 'info':
+                    print("Boot version: {}.{}.{}".format(
+                     ufl.boot_fw_version[0], ufl.boot_fw_version[1],
+                     ufl.boot_fw_version[2]))
+                    print("Memory start address: {} / length: {}".format(
+                     ufl.starting_address, ufl.memory_length))
+                elif a == 'program':
+                    try:
+                        ufl.erase()
+                    except:
+                        self._exit_error("ERASE_FAILED")                   
+                    try:
+                        ufl.program(program_data)
+                    except:
+                        self._exit_error("PROGRAM_FAILED")
+                elif a == 'verify':
+                    try:
+                        if ufl.verify(program_data) is False:
+                            self._exit_error("VERIFY_DATA_MISMATCH")
+                    except:
+                        self._exit_error("VERIFY_FAILED")
                    
 if __name__ == '__main__':
     Application().main()

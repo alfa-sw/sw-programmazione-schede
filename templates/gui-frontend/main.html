@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello, World!</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
+    <script type="text/javascript" src="/eel.js"></script>
+    <script type="text/javascript">
+     
+      eel.expose(say_hello_js); // Expose this function to Python
+      function say_hello_js(x) {
+        console.log("Hello from " + x);
+      }
+
+      eel.expose(is_hex_available_js); // Expose this function to Python
+      function is_hex_available_js(x) {
+        console.log("is_hex_available_js? " + x);
+        set_enable_buttons(x, [
+            'btn-program',
+            'btn-verify',
+            'btn-program-and-verify'
+        ]);
+      }
+
+      function set_enable_buttons(enabled, array_ids) {
+          for(var i=0; i<array_ids.length; i++) {
+             var el = document.getElementById(array_ids[i])
+             if (!enabled)
+                el.className = "disabled";
+             else
+                el.className = "";
+          }              
+      }
+
+      eel.expose(start_process_js); // Expose this function to Python
+      function start_process_js(x) {
+        console.log("Starting process");
+        document.getElementById('success-box').style.display = "none";
+        document.getElementById('failure-box').style.display = "none";        
+        set_enable_buttons(false, [
+            'btn-info',
+            'btn-program',
+            'btn-verify',
+            'btn-program-and-verify'
+        ]);
+      }
+      
+      eel.expose(stop_process_js); // Expose this function to Python
+      function stop_process_js(x) {
+        console.log("Stopping process ", x);
+        if (x.success) {
+            document.getElementById('success-box').style.display = "block";
+            document.getElementById('failure-box').style.display = "none";
+            document.getElementById('success-message').innerHTML = x.output;
+        } else {
+            document.getElementById('success-box').style.display = "none";
+            document.getElementById('failure-box').style.display = "block";
+            document.getElementById('failure-message').innerHTML = x.output;            
+        }
+        set_enable_buttons(true, [
+            'btn-info',
+            'btn-program',
+            'btn-verify',
+            'btn-program-and-verify'
+        ]);
+
+      }
+      
+      function load_file() {
+        var inputField = document.getElementById('file_input');
+        var selectedFiles = inputField.files;
+
+        for(var i=0; i<selectedFiles.length; i++) {
+            var file = selectedFiles[i];
+            loadAsText(file); 
+        }
+      }
+    
+      function loadAsText(theFile) {
+        var reader = new FileReader();
+
+        reader.onload = function(loadedEvent) {
+            // result contains loaded file.
+            var file_content = loadedEvent.target.result;
+            eel.process_file(file_content);
+        }
+        reader.readAsText(theFile);
+      } 
+
+      function html_init() {
+        is_hex_available_js(false);      
+        document.getElementById('success-box').style.display = "none";
+        document.getElementById('failure-box').style.display = "none";        
+        eel.say_hello_py("Javascript World!");
+      }
+
+      function process(action) {
+        var dict = {
+            "action": action,
+            "device_id": document.getElementById("device-id").value,
+            "serial_port": document.getElementById("serial-port").value,
+            "use_serial": document.getElementById("use-serial").checked
+        };
+        eel.process(dict);
+      }
+    
+    </script>
+  </head>
+
+
+  <body onload="html_init();">
+  <div class="box">
+      <div class="navigation">
+       <div>
+         <div class="title">
+           SETUP
+         </div>
+         <div>
+           Device ID:
+           <input type="text" id="device-id" name="device-id" value="255">
+         </div>
+         <div>
+           <input type="checkbox" id="use-serial" checked>
+             Use serial communication to jump to bootloader
+         </div>
+         <div>
+           Serial port device:
+           <input type="text" id="serial-port" value="/dev/ttyUSB0">
+         </div>
+       </div>
+       <div>
+         <div class="title">
+           HEX FILE
+         </div>
+         <div class="navigation">
+           <input type="file" id="file_input" style="width:200px;overflow: hidden;">
+           <a onclick="load_file();">Load</a>
+         </div>         
+       </div>
+      </div>
+      <div>
+         <div class="title">
+           OPERATIONS
+         </div>  
+         <div class="navigation">
+           <a href="#" id="btn-info" onclick="process('info');">Get Info</a>
+           <a href="#" id="btn-program" onclick="process('program');">Program</a>
+           <a href="#" id="btn-verify"  onclick="process('verify');">Verify</a>
+           <a href="#" id="btn-program-and-verify" disabled>Program&amp;Verify</a>         
+         </div>
+      </div>
+      
+      <div>
+         <div class="title">
+           STATUS &amp; OUTPUT
+         </div>  
+         <div style="background-color: lightgreen;" id="success-box">
+           <h4>Success</h4>
+           <div id="success-message"></div>
+         </div>
+         <div style="background-color: tomato;" id="failure-box">
+           <h4>Failure</h4>
+           <div id="failure-message"></div>
+         </div>
+
+      </div>      
+    </div>
+  
+  </body>
+
+</html>
+

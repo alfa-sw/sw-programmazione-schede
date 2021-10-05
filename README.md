@@ -3,9 +3,10 @@ alfa_fw_upgrader is a project to program the boards based on PIC 24.
 These boards have a bootloader featuring a set of commands on USB to program
 and verify the memory.  
 
-It provides a command-line application, but it is also a module with classes
-that can be imported into other projects as a library to interact with
-the bootloader and perform memory operations.
+It provides an application with either a GUI interface, either a command-line
+interface but it is also a module with classes that can be imported into other
+projects as a library to interact with the bootloader and perform memory
+operations.
 
 ## Installation
 

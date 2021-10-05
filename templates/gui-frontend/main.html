@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Hello, World!</title>
+    <title>alfa_fw_upgrader</title>
     <link rel="stylesheet" href="style.css">
     
     <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
     <script type="text/javascript" src="/eel.js"></script>
     <script type="text/javascript">
-     
+      var hex_available = false;
+      var board_initialized = false;     
+      var processing = false;
+
       eel.expose(say_hello_js); // Expose this function to Python
       function say_hello_js(x) {
         console.log("Hello from " + x);
@@ -16,39 +19,58 @@
       eel.expose(is_hex_available_js); // Expose this function to Python
       function is_hex_available_js(x) {
         console.log("is_hex_available_js? " + x);
-        set_enable_buttons(x, [
-            'btn-program',
-            'btn-verify',
-            'btn-program-and-verify'
-        ]);
+        hex_available = x;
+        set_enable_buttons();
       }
 
-      function set_enable_buttons(enabled, array_ids) {
-          for(var i=0; i<array_ids.length; i++) {
-             var el = document.getElementById(array_ids[i])
-             if (!enabled)
+      eel.expose(is_board_initialized_js); // Expose this function to Python
+      function is_board_initialized_js(x) {
+        console.log("is_board_initialized_js? " + x);
+        board_initialized = x;
+        set_enable_buttons();
+      }
+
+      function set_enable_buttons() {
+         var enabled_ids = [];
+         if (!processing) {
+             enabled_ids.push('btn-load');
+             if (board_initialized) {
+                if (hex_available) {
+                  enabled_ids.push('btn-program');
+                  enabled_ids.push('btn-verify');
+                  enabled_ids.push('btn-program-and-verify');
+                }
+                enabled_ids.push('btn-info');
+             } else {
+                enabled_ids.push('btn-init');
+             }
+         }
+         const all_btns = ['btn-program', 'btn-verify', 'btn-info', 
+           'btn-init', 'btn-program-and-verify', 'btn-load'];
+
+         all_btns.forEach(function(item){
+             var el = document.getElementById(item);
+             if (!enabled_ids.includes(item))
                 el.className = "disabled";
              else
                 el.className = "";
-          }              
+         });              
       }
 
       eel.expose(start_process_js); // Expose this function to Python
       function start_process_js(x) {
         console.log("Starting process");
         document.getElementById('success-box').style.display = "none";
-        document.getElementById('failure-box').style.display = "none";        
-        set_enable_buttons(false, [
-            'btn-info',
-            'btn-program',
-            'btn-verify',
-            'btn-program-and-verify'
-        ]);
+        document.getElementById('failure-box').style.display = "none";
+        document.getElementById('processing-box').style.display = "block";
+        processing = true;
+        set_enable_buttons();
       }
       
       eel.expose(stop_process_js); // Expose this function to Python
       function stop_process_js(x) {
         console.log("Stopping process ", x);
+        document.getElementById('processing-box').style.display = "none";
         if (x.success) {
             document.getElementById('success-box').style.display = "block";
             document.getElementById('failure-box').style.display = "none";
@@ -58,13 +80,8 @@
             document.getElementById('failure-box').style.display = "block";
             document.getElementById('failure-message').innerHTML = x.output;            
         }
-        set_enable_buttons(true, [
-            'btn-info',
-            'btn-program',
-            'btn-verify',
-            'btn-program-and-verify'
-        ]);
-
+        processing = false;
+        set_enable_buttons();
       }
       
       function load_file() {
@@ -91,7 +108,8 @@
       function html_init() {
         is_hex_available_js(false);      
         document.getElementById('success-box').style.display = "none";
-        document.getElementById('failure-box').style.display = "none";        
+        document.getElementById('failure-box').style.display = "none";
+        document.getElementById('processing-box').style.display = "none";
         eel.say_hello_py("Javascript World!");
       }
 
@@ -128,6 +146,9 @@
            Serial port device:
            <input type="text" id="serial-port" value="/dev/ttyUSB0">
          </div>
+         <div>
+           <a href="#" id="btn-init" onclick="process('init');">Connect</a>
+         </div>
        </div>
        <div>
          <div class="title">
@@ -135,7 +156,7 @@
          </div>
          <div class="navigation">
            <input type="file" id="file_input" style="width:200px;overflow: hidden;">
-           <a onclick="load_file();">Load</a>
+           <a id="btn-load" onclick="load_file();">Load</a>
          </div>         
        </div>
       </div>
@@ -147,7 +168,9 @@
            <a href="#" id="btn-info" onclick="process('info');">Get Info</a>
            <a href="#" id="btn-program" onclick="process('program');">Program</a>
            <a href="#" id="btn-verify"  onclick="process('verify');">Verify</a>
-           <a href="#" id="btn-program-and-verify" disabled>Program&amp;Verify</a>         
+           <a href="#" id="btn-program-and-verify" onclick="process('program_and_verify');">
+             Program&amp;Verify
+           </a>
          </div>
       </div>
       
@@ -162,6 +185,9 @@
          <div style="background-color: tomato;" id="failure-box">
            <h4>Failure</h4>
            <div id="failure-message"></div>
+         </div>
+         <div style="background-color: lightgrey;" id="processing-box">
+           <h4>Processing</h4>
          </div>
 
       </div>      

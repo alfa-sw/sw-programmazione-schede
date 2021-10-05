@@ -13,7 +13,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 class GUIApplication:
     hex_available = None
-    command_retvalue = None
 
     def _get_output(self, error_key, format_arg = None):
         error_item = Application.errors_dict[error_key]
@@ -35,30 +34,33 @@ class GUIApplication:
         device_id = int(setup_dict["device_id"])
         use_serial = setup_dict["use_serial"] 
         action = setup_dict["action"]
-        
-        try:
-            ufl = AlfaFirmwareLoader(device_id, 
-                   setup_dict["serial_port"] if setup_dict["use_serial"] else None)
-        except Exception as e:
-            eel.stop_process_js({
-             "success": False,
-             "output": self._get_output("INIT_FAILED", str(e))})
-            return
-        if action == "info":
+
+        if action == "init":        
+            try:
+                self.ufl = AlfaFirmwareLoader(device_id, 
+                       setup_dict["serial_port"] if setup_dict["use_serial"] else None)
+                eel.stop_process_js({"success": True, "output": ""})                       
+                eel.is_board_initialized_js(True)
+            except Exception as e:
+                eel.stop_process_js({
+                 "success": False,
+                 "output": self._get_output("INIT_FAILED", str(e))})
+                eel.is_board_initialized_js(False)
+        elif action == "info":
             eel.stop_process_js({
              "success": True,
              "output": "Memory start address: {} / length: {}"
-              .format(ufl.starting_address, ufl.memory_length)
+              .format(self.ufl.starting_address, self.ufl.memory_length)
             })
         elif action == 'program':
             try:
-                ufl.erase()
+                self.ufl.erase()
             except:
                 eel.stop_process_js({
                  "success": False,
                  "output":  self._get_output("ERASE_FAILED")})
             try:
-                ufl.program(self.program_data)
+                self.ufl.program(self.program_data)
                 eel.stop_process_js({"success": True, "output": ""})
             except:
                 eel.stop_process_js({
@@ -66,7 +68,7 @@ class GUIApplication:
                  "output":  self._get_output("PROGRAM_FAILED")})
         elif action == 'verify':
             try:
-                if ufl.verify(self.program_data) is False:
+                if self.ufl.verify(self.program_data) is False:
                     eel.stop_process_js({
                      "success": False,
                      "output":  self._get_output("VERIFY_DATA_MISMATCH")})
@@ -76,8 +78,32 @@ class GUIApplication:
                 eel.stop_process_js({
                  "success": False,
                  "output":  self._get_output("VERIFY_FAILED", str(e))})
-
-           
+        elif action == 'program_and_verify':
+            try:
+                self.ufl.erase()
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("ERASE_FAILED")})
+            try:
+                self.ufl.program(self.program_data)
+                eel.stop_process_js({"success": True, "output": ""})
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("PROGRAM_FAILED")})
+            try:
+                if self.ufl.verify(self.program_data) is False:
+                    eel.stop_process_js({
+                     "success": False,
+                     "output":  self._get_output("VERIFY_DATA_MISMATCH")})
+                else:
+                    eel.stop_process_js({"success": True, "output": ""})
+            except Exception as e:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("VERIFY_FAILED", str(e))})
+                 
     def __init__(self):
         self.hex_available = False
     
@@ -92,8 +118,19 @@ class GUIApplication:
 
         @eel.expose 
         def process_file(file_content):
-            self.program_data = HexUtils.load_hex_to_array(file_content)
-            self.hex_available = True
+            eel.start_process_js()
+            try:
+                self.program_data = HexUtils.load_hex_to_array(file_content)
+                eel.stop_process_js({
+                 "success": True,
+                 "output":  ""})
+                self.hex_available = True                
+            except Exception as e:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("VERIFY_FAILED", str(e))})            
+                self.hex_available = False
+                
             eel.is_hex_available_js(self.hex_available)
             
         eel.say_hello_js('Python World!') # Call a Javascript function
@@ -104,7 +141,7 @@ class GUIApplication:
             eel.spawn(self.process, setup_dict)
             
     def run(self):
-        eel.start('main.html', size=(100, 100))
+        eel.start('main.html', size=(700, 500))
     
 
 class Application:

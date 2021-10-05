@@ -21,14 +21,15 @@
   font-family: arial, sans-serif;
   padding: 5px;
   text-align: center;
-
-
 }
+
 .title {
   text-align: center;
   border-bottom: 2px solid var(--border_color);
   margin: 20px 0px 20px 0px;
+  font-weight: bold;
 }
+
 .navigation {
   display: flex;
   flex-flow: row wrap;

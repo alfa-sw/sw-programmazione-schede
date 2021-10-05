@@ -54,8 +54,8 @@ class HexUtils:
             except:
                 logging.debug("addr:{} is out of memory".format(addr))
         return out
-        
-    def load_hex_file_to_dict(filename):
+    
+    def load_hex_to_dict(filecontent):
         """ get the dictionary from an hex file. """
             
         HEX_FILE_EXTENDED_LINEAR_ADDRESS = 0x04
@@ -66,48 +66,47 @@ class HexUtils:
         extendedAddress = None
         pData = {}
         
-        with open(filename,'r') as fileHex:
-            lines = fileHex.readlines()
-            for line in lines:
-                line = line.strip()
-                if len(line) <= 0:
-                    continue  
-                if line[0]!=':':
-                    raise ValueError("invalid format")
-                line = line.strip(':')
-                
-                recordLength = str2hex(line[0:2])
-                addressField= str2hex(line[2:6])
-                recordType= str2hex(line[6:8])
-                dataPayload = line[8 : 8 + recordLength * 2]
-                checksum = str2hex(line[8 + recordLength * 2:
-                                       10 + recordLength * 2])
+        lines = filecontent.split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) <= 0:
+                continue  
+            if line[0]!=':':
+                raise ValueError("invalid format")
+            line = line.strip(':')
+            
+            recordLength = str2hex(line[0:2])
+            addressField= str2hex(line[2:6])
+            recordType= str2hex(line[6:8])
+            dataPayload = line[8 : 8 + recordLength * 2]
+            checksum = str2hex(line[8 + recordLength * 2:
+                                   10 + recordLength * 2])
 
-                checksumCalculated=0
-                for j in range(0,recordLength+4):
-                    checksumCalculated += str2hex(line[j*2 : (j * 2) + 2])       
-                checksumCalculated = ~checksumCalculated
-                checksumCalculated += 1
-                checksumCalculated = checksumCalculated & 0x000000FF
-        
-                if (checksumCalculated & 0x000000FF) != checksum:
-                    raise ValueError("invalid checksum (calculated:{}, read:{}"
-                                     .format(checksumCalculated, checksum))
-                                     
-                if recordType == HEX_FILE_EXTENDED_LINEAR_ADDRESS:
-                    extendedAddress = str2hex(dataPayload)
-                elif recordType == HEX_FILE_EOF:
-                    break
-                elif recordType == HEX_FILE_DATA:
-                    totalAddress = (extendedAddress << 16) + addressField 
-                    for i in range(0, recordLength):
-                        datum = str2hex(dataPayload[i*2:i*2+2])
-                        pData[totalAddress + i] = datum                          
+            checksumCalculated=0
+            for j in range(0,recordLength+4):
+                checksumCalculated += str2hex(line[j*2 : (j * 2) + 2])       
+            checksumCalculated = ~checksumCalculated
+            checksumCalculated += 1
+            checksumCalculated = checksumCalculated & 0x000000FF
+    
+            if (checksumCalculated & 0x000000FF) != checksum:
+                raise ValueError("invalid checksum (calculated:{}, read:{}"
+                                 .format(checksumCalculated, checksum))
+                                 
+            if recordType == HEX_FILE_EXTENDED_LINEAR_ADDRESS:
+                extendedAddress = str2hex(dataPayload)
+            elif recordType == HEX_FILE_EOF:
+                break
+            elif recordType == HEX_FILE_DATA:
+                totalAddress = (extendedAddress << 16) + addressField 
+                for i in range(0, recordLength):
+                    datum = str2hex(dataPayload[i*2:i*2+2])
+                    pData[totalAddress + i] = datum                          
         return pData
-
-    def load_hex_file_to_array(filename):
+    
+    def load_hex_to_array(file_content):
         """ get binary from an hex file. """
-        dic = HexUtils.load_hex_file_to_dict(filename)
+        dic = HexUtils.load_hex_to_dict(file_content)
         return HexUtils.dict_to_array(dic)
 
 

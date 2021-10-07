@@ -292,7 +292,7 @@ To perform verify only, with debug info and reset,
                 try:
                     with open(fn, 'r') as f:
                         file_content = f.read()
-                        program_data = HexUtils.load_hex_file_to_array(fn)
+                        program_data = HexUtils.load_hex_to_array(file_content)
                 except:
                     self._exit_error("FILE_LOAD_FAILED", fn)
 

@@ -154,7 +154,7 @@ class USBManager:
         if ret != len(data_to_send):
             raise RuntimeError("Returning value {} from write operation is not "
             "the expected one {}".format(ret, len(data_to_send)))
-        logging.debug("Wrote data: {}".format(bytes(data_to_send).hex(":")))
+        logging.debug("Wrote data: {}".format(bytes(data_to_send).hex()))
     
     def _read_usb_message(self, length = 64, timeout = 5000):
         """ receive a message from USB endpoint 
@@ -163,7 +163,7 @@ class USBManager:
         this value depends on the command. """
     
         ret = self.dev.read(self.ep_in, length, timeout)
-        logging.debug("Read data: {}".format(bytes(ret).hex(":")))
+        logging.debug("Read data: {}".format(bytes(ret).hex()))
         return ret
 
     def QUERY(self):
@@ -442,7 +442,7 @@ class AlfaFirmwareLoader:
                 chunk = bytes(program_segment[cursor:cursor + chunk_len])
                 logging.debug("programming on address {} chunk {} "
                               .format(self.starting_address + cursor,
-                               chunk.hex(":")))
+                               chunk.hex()))
                 self.usb.PROGRAM(self.starting_address + cursor // 2, chunk)
                 cursor += chunk_len               
             except:
@@ -481,7 +481,7 @@ class AlfaFirmwareLoader:
                 
                 if chunk != read_chunk:
                     logging.info("read {} is different from file {}"
-                     .format(read_chunk.hex(":"), chunk.hex(":")))
+                     .format(read_chunk.hex(), chunk.hex()))
                     return False
                     
                 cursor += chunk_len

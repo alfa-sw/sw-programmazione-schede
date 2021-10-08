@@ -101,7 +101,7 @@ class USBManager:
     CMD_ID_VERIFY = 0x7
     CMD_ID_BOOT_FW_VERSION_REQUEST = 0x8
     
-    def __init__(self, deviceId = 0xff):
+    def __init__(self, deviceId):
         self._usb_init()
         self.deviceId = deviceId
         
@@ -166,7 +166,7 @@ class USBManager:
         logging.debug("Read data: {}".format(bytes(ret).hex()))
         return ret
 
-    def QUERY(self):
+    def QUERY(self, altDeviceId = None):
         """ Command to obtain information about the memory layout - starting 
         address and length of the application memory. It is also used to 
         check for erasing operation finish and to setup the following
@@ -194,9 +194,14 @@ class USBManager:
         # +--------+----------------+---------+-----------------+--------+--------+
         
 
+        if altDeviceId is None:
+            deviceId = self.deviceId
+        else:
+            deviceId = altDeviceId
+            
         fmt = "<B{}sB".format(len(self.PASSWORD_QUERY))
         data = struct.pack(fmt, self.CMD_ID_QUERY, 
-          bytes(self.PASSWORD_QUERY), self.deviceId)
+          bytes(self.PASSWORD_QUERY), deviceId)
         self._send_usb_message(data)
         buff = self._read_usb_message(64)[:13]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
@@ -331,24 +336,59 @@ class USBManager:
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
     
-    def __init__(self, deviceId = 0xff, serialPort = None):
+    def __init__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
+                 serialPort = '/dev/ttyUSB0', pollingInterval = 10):
+        """
+        Instantiate an object of this class.
+        Note: it is possible to select either the polling and serial strategies,
+        but caller should not select them together, since they refers to
+        different use cases.
+       
+        :parameter deviceId: id of the device to talk to
+        :parameter pollingMode: boolean to enable the polling strategy
+        :parameter serialMode: boolean to enable the serial/remote strategy
+        :parameter serialPort: serial device filename
+        :parameter pollingInterval: polling time in seconds
+        """
+        
         try:
-            self.usb = USBManager(deviceId)
-            # with bootloader 2.0 usb seems to working
-            # but it does not respond due to hw misconfiguration,
-            # this is why this call is here and repeated above
-            address, length = self.usb.QUERY()
+            if pollingMode:
+                startTime = time.time()
+                i = 0
+                exc = None
+                usb = None
+                while not usb and time.time() - startTime < pollingInterval:
+                    try:
+                        usb = USBManager(deviceId)
+                        self.usb = usb
+                    except Exception as e:
+                        i += 1
+                        logging.debug(f"Polling USB, failed for the {i}-th time")
+                        time.sleep(0.1)
+                if not self.usb:
+                    raise exc
+            else:
+                self.usb = USBManager(deviceId)
+            
         except:
-            if serialPort is not None:
+            if serialMode:
                 try:        
                     self.jump_to_boot(serialPort)
                 except:
                     raise RuntimeError("failed to jump to boot using serial commands")
             try:
                 self.usb = USBManager(deviceId)
-                address, length = self.usb.QUERY()
             except:
                 raise RuntimeError("failed to init USB device")
+            
+        # bootloader requires to receive QUERY with device id = 0 to avoid
+        # jump-to-application
+        self.usb.QUERY(altDeviceId = 0)
+        
+        # with bootloader 2.0 usb seems to working
+        # but it does not respond due to hw misconfiguration,
+        # this is why this call is here and repeated above
+        address, length = self.usb.QUERY()
             
         # boot version is retrieved by using command BOOT_FW_REQUEST
         # however, executing this command on a bootloader not implementing it
@@ -361,7 +401,7 @@ class AlfaFirmwareLoader:
           
         logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
           .format(boot_fw_version))
-          
+
         self.starting_address = address
         self.memory_length = length
         self.boot_fw_version = boot_fw_version        

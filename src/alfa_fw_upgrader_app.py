@@ -37,8 +37,12 @@ class GUIApplication:
 
         if action == "init":        
             try:
-                self.ufl = AlfaFirmwareLoader(device_id, 
-                       setup_dict["serial_port"] if setup_dict["use_serial"] else None)
+                self.ufl = AlfaFirmwareLoader(
+                      deviceId = device_id, 
+                      serialMode = setup_dict["use_serial"],
+                      pollingMode = False, # not implemented
+                      serialPort = setup_dict["serial_port"])
+                                  
                 eel.stop_process_js({"success": True, "output": ""})                       
                 eel.is_board_initialized_js(True)
             except Exception as e:
@@ -240,16 +244,26 @@ To perform verify only, with debug info and reset,
         parser.add_argument('-d', '--deviceid', dest='ID', type=int, default=255,
                             help='ID of the device (default=255)')
 
-        parser.add_argument('--serial', dest='serial', action='store_true',
-                            help="try to jump to boot using serial commands (default)")
-        parser.add_argument('--no-serial', dest='serial', action='store_false',
-                            help="do not try to jump to boot using serial commands")
-        parser.set_defaults(serial=True)
+        parser.add_argument('-s', '--strategy', dest='strategy',
+                           choices=['simple', 'polling', 'serial'],
+                           help="strategy for getting device ready for upgrade."
+                                "- simple: try to connect USB and exit if "
+                                "device not ready (default choice) "
+                                "- polling: watch for USB device to became "
+                                "available and avoid jumping to application "
+                                "- serial: try to jump to boot using serial "
+                                "commands")
 
-        parser.add_argument('-s', '--serial-port', dest='serialport', type=str,
-                            help='serial port to use (default=/dev/ttyUSB0)',
+        parser.add_argument('-p', '--serial-port', dest='serialport', type=str,
+                            help="when strategy is 'serial', the serial port to "
+                            "use (default=/dev/ttyUSB0)",
                             default='/dev/ttyUSB0')
-        
+
+        parser.add_argument('-t', '--polling-time', dest='pollingtime', type=str,
+                            help="when strategy is 'polling', the polling time "
+                            "in seconds (default=10)",
+                            default=10)
+
         parser.add_argument("-v", "--verbosity", action="count",
                             help="increase output verbosity")
 
@@ -279,8 +293,6 @@ To perform verify only, with debug info and reset,
                 format="[%(asctime)s]%(levelname)s %(funcName)s() "
                        "%(filename)s:%(lineno)d %(message)s")
 
-                
-
             # put actions in the right order and avoid repetitions
             actions = [x for x in self.actions if x in self.args.actions]
 
@@ -297,8 +309,12 @@ To perform verify only, with debug info and reset,
                     self._exit_error("FILE_LOAD_FAILED", fn)
 
             try:
-                ufl = AlfaFirmwareLoader(self.args.ID, 
-                       self.args.serialport if self.args.serial else None)
+                ufl = AlfaFirmwareLoader(
+                      deviceId = self.args.ID, 
+                      serialMode = self.args.strategy == "serial",
+                      pollingMode = self.args.strategy == "polling",
+                      serialPort = self.args.serialport,
+                      pollingInterval = self.args.pollingtime)
             except Exception as e:
                 self._exit_error("INIT_FAILED", str(e))
             

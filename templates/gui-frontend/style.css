@@ -51,6 +51,11 @@ a:hover {
   color: var(--color_on_dark_bg);
 }
 
+a.pressed {
+  background: var(--border_color);
+  color: var(--color_on_dark_bg);
+}
+
 .disabled {
   pointer-events: none;
   cursor: default;
@@ -64,4 +69,7 @@ a:hover {
 .navigation a:hover {
 }
 
+.message {
+  white-space: pre-line
+}
 

@@ -8,8 +8,9 @@
     <script type="text/javascript" src="/eel.js"></script>
     <script type="text/javascript">
       var hex_available = false;
-      var board_initialized = false;     
+      var board_initialized = false;
       var processing = false;
+      var strategy = "simple";
 
       eel.expose(say_hello_js); // Expose this function to Python
       function say_hello_js(x) {
@@ -105,11 +106,49 @@
         reader.readAsText(theFile);
       } 
 
+      function set_strategy(mode) {
+        var btn, box;
+        
+        const all_btns = ['btn-strategy-simple', 'btn-strategy-polling',
+         'btn-strategy-serial'];
+
+        const all_boxes = ['box-strategy-serial'];
+         
+        if (mode == "simple") {
+           btn = "btn-strategy-simple";
+           strategy = "simple";
+        } else if (mode == "polling") {
+           btn = "btn-strategy-polling";
+           strategy = "polling";           
+        } else {
+           btn = "btn-strategy-serial";
+           box = "box-strategy-serial";
+           strategy = "serial";
+        }
+        
+        all_btns.forEach(function(item){
+             var el = document.getElementById(item);
+             if (btn == item)
+                el.className = "pressed";
+             else
+                el.className = "";
+        });            
+        all_boxes.forEach(function(item){
+             var el = document.getElementById(item);
+             if (box == item)
+                el.style.display = "block";
+             else
+                el.style.display = "none";
+        });
+      }
+      
+
       function html_init() {
         is_hex_available_js(false);      
         document.getElementById('success-box').style.display = "none";
         document.getElementById('failure-box').style.display = "none";
         document.getElementById('processing-box').style.display = "none";
+        set_strategy("simple");
         eel.say_hello_py("Javascript World!");
       }
 
@@ -118,10 +157,12 @@
             "action": action,
             "device_id": document.getElementById("device-id").value,
             "serial_port": document.getElementById("serial-port").value,
-            "use_serial": document.getElementById("use-serial").checked
+            "strategy": strategy
         };
         eel.process(dict);
       }
+    
+    
     
     </script>
   </head>
@@ -134,15 +175,17 @@
          <div class="title">
            SETUP
          </div>
+         <div>Mode:</div>
+         <div class="navigation">
+           <a href="#" id="btn-strategy-simple" onclick="set_strategy('simple');">Simple</a>
+           <a href="#" id="btn-strategy-polling" onclick="set_strategy('polling');">Polling</a>
+           <a href="#" id="btn-strategy-serial"  onclick="set_strategy('serial');">Serial</a>
+         </div>         
          <div>
            Device ID:
            <input type="text" id="device-id" name="device-id" value="255">
          </div>
-         <div>
-           <input type="checkbox" id="use-serial" checked>
-             Use serial communication to jump to bootloader
-         </div>
-         <div>
+         <div id="box-strategy-serial">
            Serial port device:
            <input type="text" id="serial-port" value="/dev/ttyUSB0">
          </div>
@@ -180,11 +223,11 @@
          </div>  
          <div style="background-color: lightgreen;" id="success-box">
            <h4>Success</h4>
-           <div id="success-message"></div>
+           <div id="success-message" class="message"></div>
          </div>
          <div style="background-color: tomato;" id="failure-box">
            <h4>Failure</h4>
-           <div id="failure-message"></div>
+           <div id="failure-message" class="message"></div>
          </div>
          <div style="background-color: lightgrey;" id="processing-box">
            <h4>Processing</h4>

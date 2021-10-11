@@ -99,7 +99,7 @@ class USBManager:
     CMD_ID_PROGRAM = 0x5
     CMD_ID_PROGRAM_COMPLETE = 0x6
     CMD_ID_VERIFY = 0x7
-    CMD_ID_BOOT_FW_VERSION_REQUEST = 0x8
+    CMD_ID_BOOT_FW_VERSION_REQUEST = 0x0A
     
     def __init__(self, deviceId):
         self._usb_init()
@@ -192,7 +192,11 @@ class USBManager:
         # | <byte> |     <byte>     | <byte>  |    <uint32>     |<uint32>| <byte> |
         # |  [2]   |      [2]       |  [1]    |       ?         |   ?    | [0xFF] |
         # +--------+----------------+---------+-----------------+--------+--------+
-        
+        # +--------------------------+-----------+-----------+-----------+
+        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |
+        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |
+        # |        [0/1]             |     ?     |   ?       |   ?       |
+        # +--------------------------+-----------+-----------+-----------+
 
         if altDeviceId is None:
             deviceId = self.deviceId
@@ -203,20 +207,27 @@ class USBManager:
         data = struct.pack(fmt, self.CMD_ID_QUERY, 
           bytes(self.PASSWORD_QUERY), deviceId)
         self._send_usb_message(data)
-        buff = self._read_usb_message(64)[:13]
+        buff = self._read_usb_message(64)[:17]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
-        address1, lenght1, type2 = struct.unpack("<BBBBLLB", buff)
+        address1, lenght1, type2, proto_ver, \
+        ver_major, ver_minor, ver_patch = struct.unpack("<BBBBLLBBBBB", buff)
         
+        if proto_ver > 0:
+            ver = (ver_major, ver_minor, ver_patch)
+        else:
+            ver = None
+       
         try:
             assert cmd_id == self.CMD_ID_QUERY
             assert bytesPerPacket == self.DATA_ATTACHMENT_LEN
             assert bytesPerAddress == 2
             assert memoryType == 1
             assert type2 == 0xFF
+            assert proto_ver == 0 or proto_ver == 1
         except:
             RuntimeError("Invalid data in QUERY response")
             
-        return (address1, lenght1)
+        return (address1, lenght1, proto_ver, ver)
 
     def ERASE(self) -> NoReturn:
         """ Erase the application memory. Do not return anything. """
@@ -326,7 +337,7 @@ class USBManager:
           struct.unpack("<BBBB", buff)
 
         try:
-            assert cmd_id == self.CMD_ID_QUERY
+            assert cmd_id == self.CMD_ID_BOOT_FW_VERSION_REQUEST
         except:
             RuntimeError("Invalid data in BOOT_FW_VERSION_REQUEST response")
             
@@ -381,23 +392,22 @@ class AlfaFirmwareLoader:
             except:
                 raise RuntimeError("failed to init USB device")
             
-        # bootloader requires to receive QUERY with device id = 0 to avoid
-        # jump-to-application
-        self.usb.QUERY(altDeviceId = 0)
-        
-        # with bootloader 2.0 usb seems to working
-        # but it does not respond due to hw misconfiguration,
-        # this is why this call is here and repeated above
-        address, length = self.usb.QUERY()
+        try:
+            # bootloader requires to receive QUERY with device id = 0 to avoid
+            # jump-to-application
+            self.usb.QUERY(altDeviceId = 0)
             
-        # boot version is retrieved by using command BOOT_FW_REQUEST
-        # however, executing this command on a bootloader not implementing it
-        # results in a deadlock
-        # TODO restore when fw is ready
-        boot_fw_version = (0,0,0) # self.usb.BOOT_FW_VERSION_REQUEST()
-        
-        logging.info("Response to QUERY, address = {}, length = {}"
-          .format(address, length))
+            # with bootloader 2.0 usb seems to working
+            # but it does not respond due to hw misconfiguration,
+            # so we need to send this message to make sure that it works
+            address, length, proto_ver, boot_fw_version = self.usb.QUERY()
+
+        except:
+            raise RuntimeError("failed to query device")
+                        
+        logging.info("Response to QUERY, address = {}, length = {}, "
+                     "proto_ver = {}, boot_ver = {}"
+          .format(address, length, proto_ver, boot_fw_version))
           
         logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
           .format(boot_fw_version))

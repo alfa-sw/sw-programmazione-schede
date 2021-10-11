@@ -32,17 +32,16 @@ class GUIApplication:
         print(setup_dict)
         
         device_id = int(setup_dict["device_id"])
-        use_serial = setup_dict["use_serial"] 
         action = setup_dict["action"]
 
         if action == "init":        
             try:
                 self.ufl = AlfaFirmwareLoader(
                       deviceId = device_id, 
-                      serialMode = setup_dict["use_serial"],
-                      pollingMode = False, # not implemented
+                      serialMode = setup_dict["strategy"] == "serial",
+                      pollingMode = setup_dict["strategy"] == "polling",
                       serialPort = setup_dict["serial_port"])
-                                  
+
                 eel.stop_process_js({"success": True, "output": ""})                       
                 eel.is_board_initialized_js(True)
             except Exception as e:
@@ -53,8 +52,11 @@ class GUIApplication:
         elif action == "info":
             eel.stop_process_js({
              "success": True,
-             "output": "Memory start address: {} / length: {}"
-              .format(self.ufl.starting_address, self.ufl.memory_length)
+             "output": "Memory start address: {} / length: {}\nBoot version: {}"
+              .format(self.ufl.starting_address,
+                      self.ufl.memory_length,
+                      self.ufl.boot_fw_version if self.ufl.boot_fw_version \
+                       is not None else "N/A")
             })
         elif action == 'program':
             try:
@@ -320,9 +322,13 @@ To perform verify only, with debug info and reset,
             
             for a in actions:
                 if a == 'info':
-                    print("Boot version: {}.{}.{}".format(
-                     ufl.boot_fw_version[0], ufl.boot_fw_version[1],
-                     ufl.boot_fw_version[2]))
+                    if ufl.boot_fw_version is not None:
+                        print("Boot version: {}.{}.{}".format(
+                         ufl.boot_fw_version[0], ufl.boot_fw_version[1],
+                         ufl.boot_fw_version[2]))
+                    else:
+                        print("Boot version: N/A")
+                        
                     print("Memory start address: {} / length: {}".format(
                      ufl.starting_address, ufl.memory_length))
                 elif a == 'program':

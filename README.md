@@ -89,7 +89,33 @@ Install the application.
   `c;\Windows\System32\libusbK.dll` if not needed for other purposes to avoid
   further problems.
 
-### Notes
+## User guide
+
+In order to update the firmware it is needed to put the board in update mode.
+The application provides the following modalities (strategies) to achieve this:
+ - strategy *simple*: an attempt to connect to USB is done; in case of failure
+   an error is displayed;
+ - strategy *polling*: multiple attempts to connect to USB until the timeout;
+   the correct sequence is to start the application and then power on the board,
+   previously connected via USB; in this way it is possible to upgrade the fw
+   because bootloader go to update mode before jumping to main program;
+ - strategy *serial*: an attempt to connect to USB is done; in case of failure
+   it starts to communicate to the board using serial interface (RS232) and it
+   send a command to go to update mode.
+
+The strategy *serial* is useful in case of update while the machine is already
+in working mode, e.g. in case of remote updates. The strategy *polling* is
+suitable in case of manual update by connecting the board to a service PC
+without need to attach a serial adapter too.
+
+Two user interface are provided. If no arguments are given, it starts a GUI
+based on Chromium/Chrome browser. Otherwise it starts a CLI interface,
+
+Refers to program help for further usage details:
+
+>     alfa_fw_upgrader -h
+
+## Notes
 In order to test the routine for hex file reading, it is required to install 
 library *hexutils*:
 

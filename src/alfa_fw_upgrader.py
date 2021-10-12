@@ -100,7 +100,9 @@ class USBManager:
     CMD_ID_PROGRAM_COMPLETE = 0x6
     CMD_ID_VERIFY = 0x7
     CMD_ID_BOOT_FW_VERSION_REQUEST = 0x0A
-    
+    CMD_ID_JUMP_TO_APPLICATION = 0x09
+    CMD_ID_RESET_BOOT_MMT = 0x0B
+
     def __init__(self, deviceId):
         self._usb_init()
         self.deviceId = deviceId
@@ -331,7 +333,7 @@ class USBManager:
 
         return array[58 - bytesPerPacket:] 
         
-    def BOOT_FW_VERSION_REQUEST(self) -> NoReturn:       
+    def BOOT_FW_VERSION_REQUEST(self) -> tuple:       
         data = struct.pack("<BB", self.CMD_ID_BOOT_FW_VERSION_REQUEST,
           self.deviceId)
         self._send_usb_message(data)
@@ -346,71 +348,32 @@ class USBManager:
             
         return (version_major, version_minor, version_patch)
         
+    def JUMP_TO_APPLICATION(self) -> NoReturn:       
+        data = struct.pack("<B", self.CMD_ID_JUMP_TO_APPLICATION)
+        self._send_usb_message(data)
+        buff = self._read_usb_message(1)
+        cmd_id = struct.unpack("<B", buff)
+
+        try:
+            assert cmd_id == self.CMD_ID_BOOT_FW_VERSION_REQUEST
+        except:
+            RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
+
+    def RESET_BOOT_MMT(self) -> NoReturn:       
+        data = struct.pack("<B", self.CMD_ID_RESET_BOOT_MMT)
+        self._send_usb_message(data)
+        buff = self._read_usb_message(1)
+        cmd_id = struct.unpack("<B", buff)
+
+        try:
+            assert cmd_id == self.CMD_ID_RESET_BOOT_MMT
+        except:
+            RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
+                        
         
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
-
-    def __enter__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
-                 serialPort = '/dev/ttyUSB0', pollingInterval = 10):
-        
-        try:
-            if pollingMode:
-                startTime = time.time()
-                i = 0
-                exc = None
-                usb = None
-                while not usb and time.time() - startTime < pollingInterval:
-                    try:
-                        usb = USBManager(deviceId)
-                        self.usb = usb
-                    except Exception as e:
-                        i += 1
-                        logging.debug(f"Polling USB, failed for the {i}-th time")
-                        time.sleep(0.1)
-                if not self.usb:
-                    raise exc
-            else:
-                self.usb = USBManager(deviceId)
-            
-        except:
-            if serialMode:
-                try:        
-                    self.jump_to_boot(serialPort)
-                except:
-                    raise RuntimeError("failed to jump to boot using serial commands")
-            try:
-                self.usb = USBManager(deviceId)
-            except:
-                raise RuntimeError("failed to init USB device")
-            
-        try:
-            # bootloader requires to receive QUERY with device id = 0 to avoid
-            # jump-to-application
-            self.usb.QUERY(altDeviceId = 0)
-            
-            # with bootloader 2.0 usb seems to working
-            # but it does not respond due to hw misconfiguration,
-            # so we need to send this message to make sure that it works
-            address, length, proto_ver, boot_fw_version = self.usb.QUERY()
-
-        except:
-            raise RuntimeError("failed to query device")
-                        
-        logging.info("Response to QUERY, address = {}, length = {}, "
-                     "proto_ver = {}, boot_ver = {}"
-          .format(address, length, proto_ver, boot_fw_version))
-          
-        logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
-          .format(boot_fw_version))
-
-        self.starting_address = address
-        self.memory_length = length
-        self.boot_fw_version = boot_fw_version        
-        self.erased = False
-
-    def __exit__(self):
-        self.usb.disconnect()
-        
+       
     def __init__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
                  serialPort = '/dev/ttyUSB0', pollingInterval = 10):
         """
@@ -604,6 +567,23 @@ class AlfaFirmwareLoader:
                                    "positions {} and {}".format(
                                    cursor, cursor + chunk_len))
         return True
+
+    def reset(self) -> NoReturn:
+        """ reset slaves and main boards. """
+        
+        try:
+            self.usb.RESET_BOOT_MMT()
+        except:
+            raise RuntimeError("failed to perform reset")
+
+    def jump(self) -> NoReturn:
+        """ jump to main program. """
+        
+        try:
+            self.usb.JUMP_TO_APPLICATION()
+        except:
+            raise RuntimeError("failed to jump to application")
+
 
     def disconnect(self):
         self.usb.disconnect()

@@ -43,10 +43,13 @@
                   enabled_ids.push('btn-program-and-verify');
                 }
                 enabled_ids.push('btn-info');
+                enabled_ids.push('btn-jump');
+                enabled_ids.push('btn-reset');
              } 
          }
          const all_btns = ['btn-program', 'btn-verify', 'btn-info', 
-           'btn-init', 'btn-program-and-verify', 'btn-load'];
+           'btn-init', 'btn-program-and-verify', 'btn-load', 'btn-reset',
+           'btn-jump'];
 
          all_btns.forEach(function(item){
              var el = document.getElementById(item);
@@ -218,6 +221,8 @@
            <a href="#" id="btn-program-and-verify" onclick="process('program_and_verify');">
              Program&amp;Verify
            </a>
+           <a href="#" id="btn-jump"  onclick="process('jump');">Jump to application</a>
+           <a href="#" id="btn-reset"  onclick="process('reset');">Reset boards</a>
          </div>
       </div>
       

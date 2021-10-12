@@ -116,7 +116,23 @@ class GUIApplication:
                 eel.stop_process_js({
                  "success": False,
                  "output":  self._get_output("VERIFY_FAILED", str(e))})
-                 
+        elif action == 'jump':
+            try:
+                self.ufl.jump()
+                eel.stop_process_js({"success": True, "output":  ""})
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("COMMAND_FAILED")})
+        elif action == 'reset':
+            try:
+                self.ufl.reset()
+                eel.stop_process_js({"success": True, "output":  ""})
+            except:
+                eel.stop_process_js({
+                 "success": False,
+                 "output":  self._get_output("COMMAND_FAILED")})
+                                  
     def __init__(self):
         self.hex_available = False
     
@@ -165,6 +181,8 @@ class Application:
 - program: program the application memory with given hex file
 - verify: verify the application memory against the given hex file
 - info: get memory parameters and boot version
+- reset: send command to reset slaves and the board
+- jump: send command to jump to main program
 
 Examples:
 
@@ -174,7 +192,7 @@ To perform program and verify,
 To perform verify only, with debug info and reset,
  > alfa_fw_upgrader -vv -f master_tinting-boot.hex verify reset'''
 
-    actions = ('info', 'program', 'verify')
+    actions = ('info', 'program', 'verify', 'jump', 'reset')
 
     errors_dict = {
         "FILENAME_REQUIRED": {
@@ -214,6 +232,10 @@ To perform verify only, with debug info and reset,
         "VERIFY_DATA_MISMATCH": {
             "descr": "Verify failed due to data mismatch",
             "retcode": 6
+        },
+        "COMMAND_FAILED": {
+            "descr": "Invalid answer to command or timeout",
+            "retcode": 7
         },
     }
 
@@ -353,7 +375,17 @@ To perform verify only, with debug info and reset,
                             self._exit_error("VERIFY_DATA_MISMATCH")
                     except:
                         self._exit_error("VERIFY_FAILED")
-                   
+                elif a == 'reset':
+                    try:
+                        ufl.reset()
+                    except:
+                        self._exit_error("COMMAND_FAILED")
+                elif a == 'jump':
+                    try:
+                        ufl.jump()
+                    except:
+                        self._exit_error("COMMAND_FAILED")
+                        
             ufl.disconnect()
             
 if __name__ == '__main__':

@@ -104,7 +104,10 @@ class USBManager:
     def __init__(self, deviceId):
         self._usb_init()
         self.deviceId = deviceId
-        
+    
+    def disconnect(self):
+        usb.util.dispose_resources(self.dev)
+    
     def _usb_init(self):
         """ USB initialization """
         
@@ -346,7 +349,68 @@ class USBManager:
         
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
-    
+
+    def __enter__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
+                 serialPort = '/dev/ttyUSB0', pollingInterval = 10):
+        
+        try:
+            if pollingMode:
+                startTime = time.time()
+                i = 0
+                exc = None
+                usb = None
+                while not usb and time.time() - startTime < pollingInterval:
+                    try:
+                        usb = USBManager(deviceId)
+                        self.usb = usb
+                    except Exception as e:
+                        i += 1
+                        logging.debug(f"Polling USB, failed for the {i}-th time")
+                        time.sleep(0.1)
+                if not self.usb:
+                    raise exc
+            else:
+                self.usb = USBManager(deviceId)
+            
+        except:
+            if serialMode:
+                try:        
+                    self.jump_to_boot(serialPort)
+                except:
+                    raise RuntimeError("failed to jump to boot using serial commands")
+            try:
+                self.usb = USBManager(deviceId)
+            except:
+                raise RuntimeError("failed to init USB device")
+            
+        try:
+            # bootloader requires to receive QUERY with device id = 0 to avoid
+            # jump-to-application
+            self.usb.QUERY(altDeviceId = 0)
+            
+            # with bootloader 2.0 usb seems to working
+            # but it does not respond due to hw misconfiguration,
+            # so we need to send this message to make sure that it works
+            address, length, proto_ver, boot_fw_version = self.usb.QUERY()
+
+        except:
+            raise RuntimeError("failed to query device")
+                        
+        logging.info("Response to QUERY, address = {}, length = {}, "
+                     "proto_ver = {}, boot_ver = {}"
+          .format(address, length, proto_ver, boot_fw_version))
+          
+        logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
+          .format(boot_fw_version))
+
+        self.starting_address = address
+        self.memory_length = length
+        self.boot_fw_version = boot_fw_version        
+        self.erased = False
+
+    def __exit__(self):
+        self.usb.disconnect()
+        
     def __init__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
                  serialPort = '/dev/ttyUSB0', pollingInterval = 10):
         """
@@ -429,7 +493,7 @@ class AlfaFirmwareLoader:
                 
         async def operations():
             endpoint = SerialDriver()            
-            try: # TODO replace with 'with e as endpoint'?
+            try:
                 endpoint.connect(device_name = serial_filename,
                                  device_baudrate = baudrate)
                 
@@ -541,5 +605,7 @@ class AlfaFirmwareLoader:
                                    cursor, cursor + chunk_len))
         return True
 
-
+    def disconnect(self):
+        self.usb.disconnect()
+        
 

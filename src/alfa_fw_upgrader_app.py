@@ -34,21 +34,28 @@ class GUIApplication:
         device_id = int(setup_dict["device_id"])
         action = setup_dict["action"]
 
-        if action == "init":        
+        if action == "connect-disconnect":
             try:
-                self.ufl = AlfaFirmwareLoader(
-                      deviceId = device_id, 
-                      serialMode = setup_dict["strategy"] == "serial",
-                      pollingMode = setup_dict["strategy"] == "polling",
-                      serialPort = setup_dict["serial_port"])
-
-                eel.stop_process_js({"success": True, "output": ""})                       
-                eel.is_board_initialized_js(True)
-            except Exception as e:
+                self.ufl.disconnect()
+                del self.ufl
                 eel.stop_process_js({
-                 "success": False,
-                 "output": self._get_output("INIT_FAILED", str(e))})
+                 "success": True,
+                 "output": ""})
                 eel.is_board_initialized_js(False)
+            except AttributeError:
+                try:
+                    self.ufl = AlfaFirmwareLoader(
+                          deviceId = device_id, 
+                          serialMode = setup_dict["strategy"] == "serial",
+                          pollingMode = setup_dict["strategy"] == "polling",
+                          serialPort = setup_dict["serial_port"])
+                    eel.stop_process_js({"success": True, "output": ""})                       
+                    eel.is_board_initialized_js(True)
+                except Exception as e:
+                    eel.stop_process_js({
+                     "success": False,
+                     "output": self._get_output("INIT_FAILED", str(e))})
+                    eel.is_board_initialized_js(False)
         elif action == "info":
             eel.stop_process_js({
              "success": True,
@@ -347,6 +354,8 @@ To perform verify only, with debug info and reset,
                     except:
                         self._exit_error("VERIFY_FAILED")
                    
+            ufl.disconnect()
+            
 if __name__ == '__main__':
     Application().main()
 

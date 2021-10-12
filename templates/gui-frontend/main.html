@@ -35,6 +35,7 @@
          var enabled_ids = [];
          if (!processing) {
              enabled_ids.push('btn-load');
+             enabled_ids.push('btn-init');
              if (board_initialized) {
                 if (hex_available) {
                   enabled_ids.push('btn-program');
@@ -42,20 +43,23 @@
                   enabled_ids.push('btn-program-and-verify');
                 }
                 enabled_ids.push('btn-info');
-             } else {
-                enabled_ids.push('btn-init');
-             }
+             } 
          }
          const all_btns = ['btn-program', 'btn-verify', 'btn-info', 
            'btn-init', 'btn-program-and-verify', 'btn-load'];
 
          all_btns.forEach(function(item){
              var el = document.getElementById(item);
-             if (!enabled_ids.includes(item))
-                el.className = "disabled";
-             else
-                el.className = "";
-         });              
+             if (!enabled_ids.includes(item)) {
+                    el.className = "disabled";
+             } else { 
+                    el.className = "";
+             }
+         });   
+         
+         var el = document.getElementById('btn-init');
+         el.innerHTML = board_initialized ? "Disconnect" : "Connect";
+                    
       }
 
       eel.expose(start_process_js); // Expose this function to Python
@@ -190,7 +194,7 @@
            <input type="text" id="serial-port" value="/dev/ttyUSB0">
          </div>
          <div>
-           <a href="#" id="btn-init" onclick="process('init');">Connect</a>
+           <a href="#" id="btn-init" onclick="process('connect-disconnect');">Connect</a>
          </div>
        </div>
        <div>

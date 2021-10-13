@@ -373,7 +373,7 @@ class USBManager:
         
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
-       
+   
     def __init__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
                  serialPort = '/dev/ttyUSB0', pollingInterval = 10):
         """
@@ -388,6 +388,10 @@ class AlfaFirmwareLoader:
         :parameter serialPort: serial device filename
         :parameter pollingInterval: polling time in seconds
         """
+        
+        self.fw_versions = None
+        self.boot_versions = None
+        self.slaves_configuration = None
         
         try:
             if pollingMode:
@@ -454,6 +458,49 @@ class AlfaFirmwareLoader:
         src_addr = 200
         mode = Protocol.ProtocolMode.DUPLEX
                 
+        def dec_slaves_config(slaves_config):
+            """ decode out parameters of command slaves_config """
+            
+            src = slaves_config['slave_ids']
+            out = []
+            for i in range(0, len(src) * 8):
+                out.append((src[i // 8] >> (i % 8)) & 1)
+            return out
+
+        def dec_boot_versions(src):
+            """ decode out parameters of command boot versions """
+            
+            get_ver_tuple = lambda x: (x[0], x[1], x[2])
+
+            s = src['boot_slaves_protocol_version']
+            
+            out = []
+            for i in range(0, len(s) // 4):
+                out.append((s[i*4], (s[i*4+1], s[i*4+2], s[i*4+3])))
+                
+            return {
+                'boot_master_protocol': src['boot_master_protocol'][0],
+                'boot_master': get_ver_tuple(src['boot_master']),
+                'boot_slaves': out
+            }
+
+        def dec_fw_versions(src):
+            """ decode out parameters of command fw versions """
+            
+            get_ver_tuple = lambda x: (x[0], x[1], x[2])
+
+            s = src['slaves']
+            
+            out = []
+            for i in range(0, len(s) // 3):
+                out.append(get_ver_tuple([s[i * 3], s[i * 3 + 1], s[i * 3 + 2]]))
+                               
+            return {
+                'MAB_MGB_protocol': src['MAB_MGB_protocol'][0],
+                'master': get_ver_tuple(src['master']),
+                'slaves': out
+            }
+                
         async def operations():
             endpoint = SerialDriver()            
             try:
@@ -473,10 +520,34 @@ class AlfaFirmwareLoader:
                   "ENTER_DIAGNOSTIC", status_params = {"status_level": 0x07},
                   timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS)
 
+                (result, out_params) = await node.send_request_and_watch(
+                 "READ_SLAVES_CONFIGURATION", timeout_status_sec = 2)
+                if result == node.RequestWatchResult.SUCCESS:
+                    self.slaves_configuration = dec_slaves_config(out_params)
+                else:
+                    logging.warning("failed to retrieve slaves configuration")
+                    
+                (result, out_params) = await node.send_request_and_watch(
+                 "FW_VERSIONS", timeout_status_sec = 2)
+                if result == node.RequestWatchResult.SUCCESS:
+                    self.fw_versions = dec_fw_versions(out_params) 
+                else:
+                    logging.warning("failed to retrieve fw versions")
+                                    
+                (result, out_params) = await node.send_request_and_watch(
+                 "BOOT_VERSIONS", timeout_status_sec = 2)         
+                if result == node.RequestWatchResult.SUCCESS:
+                    self.boot_versions = dec_boot_versions(out_params) 
+                else:
+                    logging.warning("failed to retrieve boot versions")
+                 
                 (result, answer_params) = await node.send_request_and_watch(
                  "DIAG_JUMP_TO_BOOT", status_params = {"status_level": 0x09},
                  timeout_status_sec = 5)
                 assert result == node.RequestWatchResult.SUCCESS
+
+
+                
                 endpoint.disconnect()
                 await asyncio.sleep(5) # wait for OS and drivers to initialize
             finally:

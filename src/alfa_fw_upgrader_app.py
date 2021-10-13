@@ -59,10 +59,20 @@ class GUIApplication:
         elif action == "info":
             eel.stop_process_js({
              "success": True,
-             "output": "Memory start address: {} / length: {}\nBoot version: {}"
+             "output": "Memory start address: {} / length: {}\n"
+             "Boot version: {}\n"
+             "Boot versions (slaves): {}\n"
+             "FW versions (slaves): {}\n"
+             "Slaves configuration: {}"
               .format(self.ufl.starting_address,
                       self.ufl.memory_length,
                       self.ufl.boot_fw_version if self.ufl.boot_fw_version \
+                       is not None else "N/A",
+                      self.ufl.boot_versions if self.ufl.boot_versions \
+                       is not None else "N/A",
+                      self.ufl.fw_versions if self.ufl.fw_versions \
+                       is not None else "N/A",
+                      self.ufl.slaves_configuration if self.ufl.slaves_configuration \
                        is not None else "N/A")
             })
         elif action == 'program':
@@ -360,6 +370,20 @@ To perform verify only, with debug info and reset,
                         
                     print("Memory start address: {} / length: {}".format(
                      ufl.starting_address, ufl.memory_length))
+                     
+                    if ufl.boot_versions is not None: 
+                        print("Boot versions (slaves): {}".format(ufl.boot_versions))
+                    else:
+                        print("Boot versions: N/A")
+                    if ufl.fw_versions is not None: 
+                        print("FW versions (slaves): {}".format(ufl.fw_versions))
+                    else:
+                        print("FW versions (slaves): N/A")
+                    if ufl.slaves_configuration is not None: 
+                        print("Slaves configuration: {}".format(ufl.slaves_configuration))
+                    else:
+                        print("Slaves configuration: N/A")
+                         
                 elif a == 'program':
                     try:
                         ufl.erase()

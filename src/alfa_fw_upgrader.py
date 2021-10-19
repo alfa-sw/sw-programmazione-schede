@@ -459,12 +459,13 @@ class AlfaFirmwareLoader:
         mode = Protocol.ProtocolMode.DUPLEX
                 
         def dec_slaves_config(slaves_config):
-            """ decode out parameters of command slaves_config """
-            
+            # decode slaves_config
             src = slaves_config['slave_ids']
-            out = []
+            out = [] # array of slaves addresses
             for i in range(0, len(src) * 8):
-                out.append((src[i // 8] >> (i % 8)) & 1)
+                bit = ((src[i // 8] >> (i % 8))) & 1
+                if bit > 0:
+                    out.append(i + 1)
             return out
 
         def dec_boot_versions(src):

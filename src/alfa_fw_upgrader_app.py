@@ -5,7 +5,7 @@ import sys
 import traceback
 import logging 
 import os
-from threading import Thread
+import json 
 
 import eel
 
@@ -61,9 +61,9 @@ class GUIApplication:
              "success": True,
              "output": "Memory start address: {} / length: {}\n"
              "Boot version: {}\n"
-             "Boot versions (slaves): {}\n"
-             "FW versions (slaves): {}\n"
-             "Slaves configuration: {}"
+             "Boot versions: {}\n"
+             "FW versions: {}\n"
+             "Slaves enabled addresses: {}"
               .format(self.ufl.starting_address,
                       self.ufl.memory_length,
                       self.ufl.boot_fw_version if self.ufl.boot_fw_version \
@@ -269,7 +269,7 @@ To perform verify only, with debug info and reset,
         sys.stderr.write(text)
         
         if pr_exc: 
-            traceback.print_exc(file=sys.stdout)           
+            traceback.print_exc(file=sys.stderr)           
         exit(error_item["retcode"])
     
     def main(self):
@@ -372,17 +372,19 @@ To perform verify only, with debug info and reset,
                      ufl.starting_address, ufl.memory_length))
                      
                     if ufl.boot_versions is not None: 
-                        print("Boot versions (slaves): {}".format(ufl.boot_versions))
+                        print("Boot versions: {}".format(ufl.boot_versions))
                     else:
                         print("Boot versions: N/A")
                     if ufl.fw_versions is not None: 
-                        print("FW versions (slaves): {}".format(ufl.fw_versions))
+                        print("FW versions: {}".format(ufl.fw_versions))
+                        print("FW versions JSON: {}".format(json.dumps(ufl.fw_versions)))
                     else:
-                        print("FW versions (slaves): N/A")
+                        print("FW versions: N/A")
+                        print("FW versions JSON: N/A")                        
                     if ufl.slaves_configuration is not None: 
-                        print("Slaves configuration: {}".format(ufl.slaves_configuration))
+                        print("Slaves enabled addresses: {}".format(ufl.slaves_configuration))
                     else:
-                        print("Slaves configuration: N/A")
+                        print("Slaves enabled addresses: N/A")
                          
                 elif a == 'program':
                     try:

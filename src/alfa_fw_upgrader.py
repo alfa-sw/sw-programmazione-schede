@@ -159,7 +159,9 @@ class USBManager:
         if ret != len(data_to_send):
             raise RuntimeError("Returning value {} from write operation is not "
             "the expected one {}".format(ret, len(data_to_send)))
-        logging.debug("Wrote data: {}".format(bytes(data_to_send).hex()))
+        logging.debug("Wrote data: {}".format(
+          " ".join(["%02X" % int(b) for b in bytes(data_to_send)]) 
+          ))
     
     def _read_usb_message(self, length = 64, timeout = 5000):
         """ receive a message from USB endpoint 
@@ -168,7 +170,9 @@ class USBManager:
         this value depends on the command. """
     
         ret = self.dev.read(self.ep_in, length, timeout)
-        logging.debug("Read data: {}".format(bytes(ret).hex()))
+        logging.debug("Read data: {}".format(
+          " ".join(["%02X" % int(b) for b in bytes(ret)]) 
+          ))
         return ret
 
     def QUERY(self, altDeviceId = None):
@@ -351,6 +355,10 @@ class USBManager:
     def JUMP_TO_APPLICATION(self) -> NoReturn:       
         data = struct.pack("<B", self.CMD_ID_JUMP_TO_APPLICATION)
         self._send_usb_message(data)
+        
+        # the command does not reply anything
+        return
+         
         buff = self._read_usb_message(1)
         cmd_id = struct.unpack("<B", buff)
 
@@ -362,6 +370,10 @@ class USBManager:
     def RESET_BOOT_MMT(self) -> NoReturn:       
         data = struct.pack("<B", self.CMD_ID_RESET_BOOT_MMT)
         self._send_usb_message(data)
+
+        # the command does not reply anything
+        return
+
         buff = self._read_usb_message(1)
         cmd_id = struct.unpack("<B", buff)
 
@@ -411,7 +423,10 @@ class AlfaFirmwareLoader:
                     raise exc
             else:
                 self.usb = USBManager(deviceId)
-            
+                
+            # bootloader requires to receive QUERY with device id = 0 to avoid
+            # jump-to-application
+            self.usb.QUERY(altDeviceId = 0)            
         except:
             if serialMode:
                 try:        
@@ -422,15 +437,10 @@ class AlfaFirmwareLoader:
                 self.usb = USBManager(deviceId)
             except:
                 raise RuntimeError("failed to init USB device")
-            
-        try:
-            # bootloader requires to receive QUERY with device id = 0 to avoid
-            # jump-to-application
+
             self.usb.QUERY(altDeviceId = 0)
             
-            # with bootloader 2.0 usb seems to working
-            # but it does not respond due to hw misconfiguration,
-            # so we need to send this message to make sure that it works
+        try:
             address, length, proto_ver, boot_fw_version = self.usb.QUERY()
 
         except:
@@ -467,7 +477,7 @@ class AlfaFirmwareLoader:
                 if bit > 0:
                     out.append(i + 1)
             return out
-
+            
         def dec_boot_versions(src):
             """ decode out parameters of command boot versions """
             
@@ -591,7 +601,7 @@ class AlfaFirmwareLoader:
                 chunk = bytes(program_segment[cursor:cursor + chunk_len])
                 logging.debug("programming on address {} chunk {} "
                               .format(self.starting_address + cursor,
-                               chunk.hex()))
+                               " ".join(["%02X" % int(b) for b in chunk])))
                 self.usb.PROGRAM(self.starting_address + cursor // 2, chunk)
                 cursor += chunk_len               
             except:
@@ -630,7 +640,8 @@ class AlfaFirmwareLoader:
                 
                 if chunk != read_chunk:
                     logging.info("read {} is different from file {}"
-                     .format(read_chunk.hex(), chunk.hex()))
+                     .format(" ".join(["%02X" % int(b) for b in read_chunk]),
+                             " ".join(["%02X" % int(b) for b in chunk])))
                     return False
                     
                 cursor += chunk_len

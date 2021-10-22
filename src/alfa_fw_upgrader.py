@@ -524,13 +524,18 @@ class AlfaFirmwareLoader:
                 assert(await node.wait_for_event(
                  node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY, 5) != None)
 
-                assert(await node.wait_for_recv_status_parameters(
-                    {"status_level": 0x06}, 15) == True)
+                # this is a workaround of the following problem:
+                # ENTER_DIAGNOSTIC command may fail and multiple attemps are
+                # required
+                ok = False
+                for i in range(0,3):
+                    if (await node.send_request_and_watch(
+                      "ENTER_DIAGNOSTIC", status_params = {"status_level": 0x07},
+                      timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS:
+                         ok = True
+                         break
+                assert ok == True
                 
-                assert((await node.send_request_and_watch(
-                  "ENTER_DIAGNOSTIC", status_params = {"status_level": 0x07},
-                  timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS)
-
                 (result, out_params) = await node.send_request_and_watch(
                  "READ_SLAVES_CONFIGURATION", timeout_status_sec = 2)
                 if result == node.RequestWatchResult.SUCCESS:

@@ -2,7 +2,7 @@ ipecmd = "/opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-li
          "-jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar " \
          "-TS{pickit_serial} -{micro} -L -E -M -F{hexfile}"
 
-alfacmd = "alfa_fw_upgrader -s serial {hexfile_arg} -d {deviceId} {actions}"
+alfacmd = "alfa_fw_upgrader -v -s serial {hexfile_arg} -d {deviceId} {actions}"
 
 mmt_micro = "P24FJ256GB110"
 sccb_micro = "P33FJ32MC204"
@@ -31,14 +31,10 @@ mmt_variants = {
   "boot": {
     "yes": "boot",
     "no": "noboot"
-  },
-  "slaves": {
-    "8_1": "Slave_8_1",
-    "8": "Slave_8"
   }
 }
 
-mmt_file = "Master_Tinting_{version}-{boot}-{slaves}.X.hex"
+mmt_file = "Master_Tinting_{version}-{boot}.hex"
 
 sccb_boot_file = "BootLoaderSCCB_{version}.hex"
 sccb_boot_variants = {
@@ -63,64 +59,182 @@ tests = [
 #            FW BOOT   FW APPLICATIVO
 #---------+-------------------------
 #MMT      |  >= 1.9.3   >= 4.2.0
-#SLAVE 1  |  >= 1.5.2   >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
     "mmt_result_version": (4, 2, 0),
     "sccb_8_result_version": (4, 2, 0),
-    "mmt_variants": {"version": "new", "boot": "yes", "slaves": "8"},
+    "sccb_1_result_version": None,
+    "mmt_variants": {"version": "new", "boot": "yes"},
     "mmt_boot_variants": {"version": "new"},
-    "sccb_variants": {"version": "new", "boot": "yes"},
-    "sccb_boot_variants": {"version": "new"}
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "consider_sccb_1": False
 },
 {
 #N°2
 #            FW BOOT   FW APPLICATIVO
 #---------+-------------------------
 #MMT      |  >= 1.9.3   < 4.2.0
-#SLAVE 1  |  >= 1.5.2   >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
     "mmt_result_version": None,
     "sccb_8_result_version": None,
-    "mmt_variants": {"version": "old", "boot": "yes", "slaves": "8"},
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "old", "boot": "yes"},
     "mmt_boot_variants": {"version": "new"},
-    "sccb_variants": {"version": "new", "boot": "yes"},
-    "sccb_boot_variants": {"version": "new"}
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "consider_sccb_1": False    
 },
 {
 #N°3
 #            FW BOOT   FW APPLICATIVO
 #---------+-------------------------
 #MMT      |  >= 1.9.3   >= 4.2.0
-#SLAVE 1  |  >= 1.5.2   < 4.2.0
+#SLAVE 8  |  >= 1.5.2   < 4.2.0
     "mmt_result_version": (4, 2, 0),
     "sccb_8_result_version": None,
-    "mmt_variants": {"version": "new", "boot": "yes", "slaves": "8"},
+    "sccb_1_result_version": None,        
+    "mmt_variants": {"version": "new", "boot": "yes"},
     "mmt_boot_variants": {"version": "new"},
-    "sccb_variants": {"version": "old", "boot": "yes"},
-    "sccb_boot_variants": {"version": "new"}
+    "sccb_8_variants": {"version": "old", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "consider_sccb_1": False    
 },
 {
 #N°4
 #            FW BOOT   FW APPLICATIVO
 #---------+-------------------------
 #MMT      |  < 1.9.3   >= 4.2.0
-#SLAVE 1  |  >= 1.5.2   >= 4.2.0
-    "mmt_result": False,
-    "sccb_result": False,
-    "sccb_variants": {"version": "new", "boot": "yes", "slaves": "8"},
-    "sccb_boot_variants": {"version": "new"},
-    "mmt_variants": {"version": "new", "boot": "yes", "slaves": "8"},
-    "mmt_boot_variants": {"version": "old"}    
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+    "mmt_result_version": None,
+    "sccb_8_result_version": None,
+    "sccb_1_result_version": None,    
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants": {"version": "old"},
+    "consider_sccb_1": False    
 },
 {
 #N°5
 #            FW BOOT   FW APPLICATIVO
 #---------+-------------------------
 #MMT      |  >= 1.9.3   >= 4.2.0
-#SLAVE 1  |  < 1.5.2   >= 4.2.0
+#SLAVE 8  |  < 1.5.2   >= 4.2.0
     "mmt_result_version": (4, 2, 0),
     "sccb_8_result_version": None,
-    "sccb_variants": {"version": "new", "boot": "yes", "slaves": "8"},
-    "sccb_boot_variants": {"version": "old"},
-    "mmt_variants": {"version": "new", "boot": "yes", "slaves": "8"},
-    "mmt_boot_variants": {"version": "new"}  
+    "sccb_1_result_version": None,    
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "old"},
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants": {"version": "new"},
+    "consider_sccb_1": False    
+},
+{
+#N°5_BIS
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  >= 1.9.3   < 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  >= 1.5.2   >= 4.2.0
+    "mmt_result_version": None,
+    "sccb_8_result_version": None,
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "old", "boot": "yes"},
+    "mmt_boot_variants": {"version": "new"},
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "new", "boot": "yes"},
+    "sccb_1_boot_variants": {"version": "new"},    
+    "consider_sccb_1": True  
+},
+{
+#N°6
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  >= 1.9.3   >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  >= 1.5.2   < 4.2.0
+    "mmt_result_version": (4, 2, 0),
+    "sccb_8_result_version": (4, 2, 0),
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants": {"version": "new"},
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "old", "boot": "yes"},
+    "sccb_1_boot_variants": {"version": "new"},    
+    "consider_sccb_1": True  
+},
+{
+#N°7
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  < 1.9.3   >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  >= 1.5.2   >= 4.2.0
+    "mmt_result_version": None,
+    "sccb_8_result_version": None,
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants": {"version": "old"},
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "new", "boot": "yes"},
+    "sccb_1_boot_variants": {"version": "new"},    
+    "consider_sccb_1": True  
+},
+{
+#N°8
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  >= 1.9.3   >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  <  1.5.2   >= 4.2.0
+    "mmt_result_version": (4, 2, 0),
+    "sccb_8_result_version": (4, 2, 0),
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants": {"version": "new"},
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "new", "boot": "yes"},
+    "sccb_1_boot_variants": {"version": "old"},    
+    "consider_sccb_1": True  
+},
+{
+#N°9
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  ASSENTE    >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  >= 1.5.2   >= 4.2.0
+    "mmt_result_version": None,
+    "sccb_8_result_version": None,
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "new", "boot": "no"},
+    "mmt_boot_variants": None,
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "new", "boot": "yes"},
+    "sccb_1_boot_variants": {"version": "new"},
+    "consider_sccb_1": True  
+},
+{
+#N°10
+#            FW BOOT   FW APPLICATIVO
+#---------+-------------------------
+#MMT      |  >=1.9.3    >= 4.2.0
+#SLAVE 8  |  >= 1.5.2   >= 4.2.0
+#SLAVE 1  |  ASSENTE    >= 4.2.0
+    "mmt_result_version": (4, 2, 0),
+    "sccb_8_result_version": (4, 2, 0),
+    "sccb_1_result_version": None,    
+    "mmt_variants": {"version": "new", "boot": "yes"},
+    "mmt_boot_variants":  {"version": "new"},
+    "sccb_8_variants": {"version": "new", "boot": "yes"},
+    "sccb_8_boot_variants": {"version": "new"},
+    "sccb_1_variants": {"version": "new", "boot": "no"},
+    "sccb_1_boot_variants": None,
+    "consider_sccb_1": True  
 }
 ]

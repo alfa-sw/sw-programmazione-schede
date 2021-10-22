@@ -560,7 +560,7 @@ class AlfaFirmwareLoader:
 
                 
                 endpoint.disconnect()
-                await asyncio.sleep(5) # wait for OS and drivers to initialize
+                await asyncio.sleep(10) # wait for OS and drivers to initialize
             finally:
                 endpoint.disconnect()
                 

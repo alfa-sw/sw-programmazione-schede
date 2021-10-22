@@ -29,7 +29,7 @@ execute, by using the statement "@unittest.SkipTest" in the code of test.py.
  
 In order to execute the test, prepare as follows:
  - setup 1 MMT, and 2 SCCB; set the dipswitch to 1-0-0-0-0-0 for the slave
-   board with address 1, and to 0-0-0-1-0-0 fot the slave with address 8
+   board with address 1, and to 0-0-0-1-0-0 for the slave with address 8
  - connect 2 PICKIT via USB and prepare to attach them to the boards
  
 The first tests requires to have only MMT and SCCB with address 8.
@@ -38,7 +38,7 @@ Once setup the environment, select the test editing test.py and execute:
 
  python test.py 2>&1 | tee your_log.log
 
-Follow the instructions on the prompt and keep your finger crossed.
+Follow the instructions on the prompt and keep fingers crossed :-)
 
 DESCRIPTION OF THE TESTS
 ========================
@@ -93,8 +93,8 @@ issues.
 CONCLUSIONS
 ===========
 
-Many problems related to booloader encountered while performing these tests has been addressed.
-It seems that the problem causing the system to hang until power reset have been fixed (issues #13). 
+Many problems related to bootloader encountered while performing these tests have been addressed.
+It seems that the problem causing the system to hang until power reset has been fixed (issues #13). 
 However, the procedure itself is not completely affordable, that is the piece of software
 that will handle the upgrade of the system will have to handle failures.
 The most common causes of failures are:

@@ -202,18 +202,18 @@ class TestProgram(unittest.TestCase):
             vers = self.get_versions(True)  
             
             if test["mmt_result_version"] is None:              
-                assert tuple(vers["master"]) == (0, 0, 0)
+                assert tuple(vers["master"]) == (255, 255, 255)
             else:
                 assert tuple(vers["master"]) == test["mmt_result_version"]
             
             if test["sccb_8_result_version"] is None: 
-                assert tuple(vers["slaves"][7]) ==  (0, 0, 0)           
+                assert tuple(vers["slaves"][7]) ==  (255, 255, 255)           
             else:
                 assert tuple(vers["slaves"][7]) == test["sccb_8_result_version"]    
                    
             if consider_slave_1:           
                 if test["sccb_1_result_version"] is None: 
-                    assert tuple(vers["slaves"][0]) ==  (0, 0, 0)           
+                    assert tuple(vers["slaves"][0]) ==  (255, 255, 255)           
                 else:
                     assert tuple(vers["slaves"][0]) == test["sccb_1_result_version"]    
 

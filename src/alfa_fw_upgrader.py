@@ -225,11 +225,11 @@ class USBManager:
         # | <byte> |     <byte>     | <byte>  |    <uint32>     |<uint32>| <byte> |
         # |  [2]   |      [2]       |  [1]    |       ?         |   ?    | [0xFF] |
         # +--------+----------------+---------+-----------------+--------+--------+
-        # +--------------------------+-----------+-----------+-----------+
-        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |
-        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |
-        # |        [0/1]             |     ?     |   ?       |   ?       |
-        # +--------------------------+-----------+-----------+-----------+
+        # +--------------------------+-----------+-----------+-----------+-----------+
+        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |  BOOT STS |
+        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |  <byte>   |
+        # |        [0/1]             |     ?     |   ?       |   ?       |   ?       |
+        # +--------------------------+-----------+-----------+-----------+-----------+
 
         if altDeviceId is None:
             deviceId = self.deviceId
@@ -240,10 +240,11 @@ class USBManager:
         data = struct.pack(fmt, self.CMD_ID_QUERY, 
           bytes(self.PASSWORD_QUERY), deviceId)
         self._send_usb_message(data)
-        buff = self._read_usb_message(64)[:17]
+        buff = self._read_usb_message(64, timeout = 5000)[:18]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
         address1, lenght1, type2, proto_ver, \
-        ver_major, ver_minor, ver_patch = struct.unpack("<BBBBLLBBBBB", buff)
+        ver_major, ver_minor, ver_patch, boot_status = \
+          struct.unpack("<BBBBLLBBBBBB", buff)
         
         if proto_ver > 0:
             ver = (ver_major, ver_minor, ver_patch)

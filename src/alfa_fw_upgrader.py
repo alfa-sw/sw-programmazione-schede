@@ -103,13 +103,34 @@ class USBManager:
     CMD_ID_JUMP_TO_APPLICATION = 0x09
     CMD_ID_RESET_BOOT_MMT = 0x0B
 
-    def __init__(self, deviceId):
+
+    def repetible(method):
+        def decorated(self, *args, **kwargs):         
+            if self.cmd_retries == 0:
+                try:
+                    return method(self, *args, **kwargs)
+                except:
+                    raise
+            for i in range(1, self.cmd_retries + 1):
+                try:
+                    return method(self, *args, **kwargs)
+                except Exception as e:
+                    logging.warning(f"Tentative #{i} failed - exception: {e}")
+                    if i >= self.cmd_retries:
+                        logging.warning(f"Failed.")
+                        raise
+        return decorated
+
+    def __init__(self, deviceId, cmdRetries, cmdTimeout):
+        self.cmd_retries = cmdRetries
+        self.cmd_timeout = cmdTimeout
         self._usb_init()
         self.deviceId = deviceId
     
     def disconnect(self):
         usb.util.dispose_resources(self.dev)
     
+   
     def _usb_init(self):
         """ USB initialization """
         
@@ -150,32 +171,35 @@ class USBManager:
         assert self.ep_out is not None
         assert self.ep_in is not None
         
-        
-    def _send_usb_message(self, data, timeout = 5000):
+    def _send_usb_message(self, data, timeout = None):
         """ send a message to USB endpoint """
         
         data_to_send = list(data) 
-        ret = self.dev.write(self.ep_out, data_to_send, timeout)        
+        logging.debug("Writing data: {}".format(
+          " ".join(["%02X" % int(b) for b in bytes(data_to_send)]) 
+          ))
+          
+        timeout = timeout if not None else self.cmd_timeout
+        ret = self.dev.write(self.ep_out, data_to_send, timeout)     
         if ret != len(data_to_send):
             raise RuntimeError("Returning value {} from write operation is not "
             "the expected one {}".format(ret, len(data_to_send)))
-        logging.debug("Wrote data: {}".format(
-          " ".join(["%02X" % int(b) for b in bytes(data_to_send)]) 
-          ))
     
-    def _read_usb_message(self, length = 64, timeout = 5000):
+    def _read_usb_message(self, length = 64, timeout = None):
         """ receive a message from USB endpoint 
         
         Note that communication will hang if the length is not the right one -
         this value depends on the command. """
-    
+        
+        timeout = timeout if not None else self.cmd_timeout
         ret = self.dev.read(self.ep_in, length, timeout)
         logging.debug("Read data: {}".format(
           " ".join(["%02X" % int(b) for b in bytes(ret)]) 
           ))
         return ret
 
-    def QUERY(self, altDeviceId = None):
+    @repetible
+    def QUERY(self, altDeviceId = None, timeout = None):
         """ Command to obtain information about the memory layout - starting 
         address and length of the application memory. It is also used to 
         check for erasing operation finish and to setup the following
@@ -235,9 +259,13 @@ class USBManager:
             assert proto_ver == 0 or proto_ver == 1
         except:
             RuntimeError("Invalid data in QUERY response")
-            
-        return (address1, lenght1, proto_ver, ver)
+        
+        if boot_status > 0:
+            logging.warning(f"Reported boot status is {boot_status}")
+        
+        return (address1, lenght1, proto_ver, ver, boot_status)
 
+    @repetible
     def ERASE(self) -> NoReturn:
         """ Erase the application memory. Do not return anything. """
         
@@ -251,7 +279,7 @@ class USBManager:
         
         # erase command does not produce any answer - send QUERY and wait
         # for the answer from this command
-        self.QUERY()
+        self.QUERY(timeout = 5000)
 
     def PROGRAM(self, address: int, chunk: bytes) -> NoReturn:
         """ Write a piece of memory. No return. 
@@ -282,6 +310,7 @@ class USBManager:
                            bytes(array))
         self._send_usb_message(data)
 
+    @repetible
     def PROGRAM_COMPLETE(self) -> NoReturn:
         """ Send the bootloader to signal that programming is complete.
         No return."""
@@ -292,7 +321,7 @@ class USBManager:
         
         data = struct.pack("<B", self.CMD_ID_PROGRAM_COMPLETE)
         self._send_usb_message(data)
-        
+
     def GET_DATA(self, address: int, length: int) -> bytes:
         """ Read a piece of memory. 
         
@@ -336,7 +365,8 @@ class USBManager:
             RuntimeError("Invalid data in GET_DATA response")
 
         return array[58 - bytesPerPacket:] 
-        
+
+    @repetible        
     def BOOT_FW_VERSION_REQUEST(self) -> tuple:       
         data = struct.pack("<BB", self.CMD_ID_BOOT_FW_VERSION_REQUEST,
           self.deviceId)
@@ -351,7 +381,8 @@ class USBManager:
             RuntimeError("Invalid data in BOOT_FW_VERSION_REQUEST response")
             
         return (version_major, version_minor, version_patch)
-        
+
+    @repetible        
     def JUMP_TO_APPLICATION(self) -> NoReturn:       
         data = struct.pack("<B", self.CMD_ID_JUMP_TO_APPLICATION)
         self._send_usb_message(data)
@@ -359,14 +390,15 @@ class USBManager:
         # the command does not reply anything
         return
          
-        buff = self._read_usb_message(1)
-        cmd_id = struct.unpack("<B", buff)
+        #~ buff = self._read_usb_message(1)
+        #~ cmd_id = struct.unpack("<B", buff)
 
-        try:
-            assert cmd_id == self.CMD_ID_BOOT_FW_VERSION_REQUEST
-        except:
-            RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
+        #~ try:
+        #~    assert cmd_id == self.CMD_ID_BOOT_FW_VERSION_REQUEST
+        #~ except:
+        #~    RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
 
+    @repetible
     def RESET_BOOT_MMT(self) -> NoReturn:       
         data = struct.pack("<B", self.CMD_ID_RESET_BOOT_MMT)
         self._send_usb_message(data)
@@ -387,7 +419,8 @@ class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
    
     def __init__(self, deviceId = 0xff, pollingMode = False, serialMode = False,
-                 serialPort = '/dev/ttyUSB0', pollingInterval = 10):
+                 serialPort = '/dev/ttyUSB0', pollingInterval = 10, cmdRetries = 0,
+                 cmdTimeout = 5000):
         """
         Instantiate an object of this class.
         Note: it is possible to select either the polling and serial strategies,
@@ -405,6 +438,12 @@ class AlfaFirmwareLoader:
         self.boot_versions = None
         self.slaves_configuration = None
         
+        usb_args = {
+            "deviceId": deviceId,
+            "cmdRetries": cmdRetries,
+            "cmdTimeout": cmdTimeout
+        }
+        logging.debug(f"usb_args: {usb_args}")
         try:
             if pollingMode:
                 startTime = time.time()
@@ -413,7 +452,7 @@ class AlfaFirmwareLoader:
                 usb = None
                 while not usb and time.time() - startTime < pollingInterval:
                     try:
-                        usb = USBManager(deviceId)
+                        usb = USBManager(**usb_args)
                         self.usb = usb
                     except Exception as e:
                         i += 1
@@ -422,26 +461,28 @@ class AlfaFirmwareLoader:
                 if not self.usb:
                     raise exc
             else:
-                self.usb = USBManager(deviceId)
+                self.usb = USBManager(**usb_args)
                 
             # bootloader requires to receive QUERY with device id = 0 to avoid
             # jump-to-application
-            self.usb.QUERY(altDeviceId = 0)            
-        except:
+            self.usb.QUERY(altDeviceId = 0)
+        except Exception as e:
+            logging.info(f"USB connection failed {e}")
             if serialMode:
-                try:        
+                try:
+                    logging.info("jumping to boot")
                     self.jump_to_boot(serialPort)
                 except:
                     raise RuntimeError("failed to jump to boot using serial commands")
             try:
-                self.usb = USBManager(deviceId)
+                self.usb = USBManager(**usb_args)
             except:
                 raise RuntimeError("failed to init USB device")
 
             self.usb.QUERY(altDeviceId = 0)
             
         try:
-            address, length, proto_ver, boot_fw_version = self.usb.QUERY()
+            address, length, proto_ver, boot_fw_version, _ = self.usb.QUERY()
 
         except:
             raise RuntimeError("failed to query device")
@@ -449,9 +490,6 @@ class AlfaFirmwareLoader:
         logging.info("Response to QUERY, address = {}, length = {}, "
                      "proto_ver = {}, boot_ver = {}"
           .format(address, length, proto_ver, boot_fw_version))
-          
-        logging.info("Response to BOOT_FW_VERSION_REQUEST, result = {}"
-          .format(boot_fw_version))
 
         self.starting_address = address
         self.memory_length = length
@@ -562,12 +600,10 @@ class AlfaFirmwareLoader:
                  timeout_status_sec = 5)
                 assert result == node.RequestWatchResult.SUCCESS
 
-
-                
-                endpoint.disconnect()
+                await endpoint.disconnect()
                 await asyncio.sleep(10) # wait for OS and drivers to initialize
             finally:
-                endpoint.disconnect()
+                await endpoint.disconnect()
                 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(operations())

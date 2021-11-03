@@ -302,8 +302,18 @@ To perform verify only, with debug info and reset,
 
         parser.add_argument('-t', '--polling-time', dest='pollingtime', type=str,
                             help="when strategy is 'polling', the polling time "
-                            "in seconds (default=10)",
+                            "in seconds (default = 10)",
                             default=10)
+
+        parser.add_argument('-cr', '--command-retries', dest='cmdretries', type=int,
+                            help="number of retries for USB commands "
+                            "in case of failure (default = 0)",
+                            default=0)
+
+        parser.add_argument('-ct', '--command-timeout', dest='cmdtimeout', type=int,
+                            help="timeout for USB commands in milliseconds "
+                            "(default = 1000)",
+                            default=1000)
 
         parser.add_argument("-v", "--verbosity", action="count",
                             help="increase output verbosity")
@@ -355,7 +365,9 @@ To perform verify only, with debug info and reset,
                       serialMode = self.args.strategy == "serial",
                       pollingMode = self.args.strategy == "polling",
                       serialPort = self.args.serialport,
-                      pollingInterval = self.args.pollingtime)
+                      pollingInterval = self.args.pollingtime,
+                      cmdRetries = self.args.cmdretries,
+                      cmdTimeout = self.args.cmdtimeout)
             except Exception as e:
                 self._exit_error("INIT_FAILED", str(e))
             

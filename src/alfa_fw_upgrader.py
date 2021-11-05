@@ -94,12 +94,13 @@ talks to the application using serial port to jump to boot.
 3. send the command ENTER_DIAGNOSTIC and wait for status_level to
    have the value 0x07
 4. monitor for 5 seconds the status_level to make sure it holds
-   the value 0x07 - there is the possibility it changes to 0x04 and
+   the value 0x07 - there is the possibility it changes to 0x06 and
    in this case go to 3 for max 3 times. If more, finish FAIL; otherwise,
 5. take slaves configuration, fw and boot versions via proper commands;
 6. send command JUMP_TO_APPLICATION and wait for status_level to go to 0x09
    for a timeout of 5 seconds
-7. wait for 5 seconds, then check USB again.
+7. wait for 5 seconds, then check USB again
+8. if USB is not available, still use serial port to read from application machine status any error code from the parameter *error_code*.
 
 Caveats
 =======

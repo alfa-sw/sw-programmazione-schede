@@ -39,6 +39,82 @@ a_b = 2 * a_p
    binary array and just copy the piece of program from hex to the
    message buffer. **
 
+Communication to bootloader
+===========================
+
+Updating of a program is managed by the bootloader. When powered up, the 
+bootloader starts the application or puts itself in update mode. 
+Earlier versions of the bootloader switch to update mode simply when USB
+is attached to a PC; newer versions allows to switch to update mode
+by means of RS232 commands. After receiving the command, a flag is set, then,
+if some conditions are met, there is a jump to the bootloader program.
+
+Updating happens via USB commands to MAB/MMT. If the node to update 
+is a slave, MAB/MMT acts as a relay:
+                                                 +-------+
+                                          +----> | PUMP1 |
+  +----+             +-----+              |      +-------+
+  | PC | <-- usb --> | MAB | <--- rs485 --+----> | PUMPn |
+  +----+             +-----+                     +-------+
+
+When MAB goes to update mode, it sends a broadcast message to RS485, in order
+to put all the slaves to update modality too.
+
+Each USB message sent to bootloader has the following structure:
+
+  +--------+------------------+
+  | CMD_ID |     Payload      |
+  | <byte> | <array of bytes> |
+  +--------+------------------+
+  
+CMD_ID is a byte to identify command, Payload is a array of bytes which
+size differs depending on the command. USB Messages to MAB have not a
+fixed size - it is not needed to add trailing zeros.
+
+Some messages - GET_DATA, QUERY - provide an answer, which size depends
+on the command id - it is always the same with a given command id and
+you have to strip away trailing zeros.
+
+In order to select the proper node, each of them has its own *device ID*.
+MAB has always a *device ID* = 0xFF. The booloader selects which node to
+update by setting a parameter of QUERY message.
+
+Switching to update mode
+========================
+
+Newer versions of bootloaders allows to switch to update mode when an
+application is running. If correctly initialized, class AlfaFirmwareLoader
+talks to the application using serial port to jump to boot.
+
+1. check if the board is already in update mode, trying to communicate
+   using USB; if so, finish OK, otherwise:
+2. wait for the machine status parameter *status_level* to reach values
+   0x06 (ALARM) or 0x04 (STANDBY) with a timeout of 180 secs.
+   If the timeout happens, finish FAIL, otherwise:
+3. send the command ENTER_DIAGNOSTIC and wait for status_level to
+   have the value 0x07
+4. monitor for 5 seconds the status_level to make sure it holds
+   the value 0x07 - there is the possibility it changes to 0x04 and
+   in this case go to 3 for max 3 times. If more, finish FAIL; otherwise,
+5. take slaves configuration, fw and boot versions via proper commands;
+6. send command JUMP_TO_APPLICATION and wait for status_level to go to 0x09
+   for a timeout of 5 seconds
+7. wait for 5 seconds, then check USB again.
+
+Caveats
+=======
+
+- In order to check if node is in update mode, you have to send a command and
+  check the response in addition to successfully initialize the USB.
+  It could happen that USB subsystem is initialized but not handled correctly
+  by the firmware. For this reason we always send QUERY with device id 0.
+- Sometimes firmware does not respond to commands. To work around this problem
+  AlfaFirmwareLoader provides the possibility to retry the same command
+  multiple times - a good value for cmdRetries parameter is 5.
+- You should verify if the memory has been correctly programmed - seldom 
+  something goes wrong and verify fails and a new erase-programming-verify cycle
+  should be performed.
+               
 """
 
 import asyncio
@@ -56,38 +132,7 @@ from typing import Any, NoReturn
 from mab_serial_lib import SerialDriver, Protocol
 
 class USBManager:
-    """ This class implements the USB communication with bootloader 
-    
-    Each message sent to bootloader has the following structure:
-    
-      +--------+------------------+
-      | CMD_ID |     Payload      |
-      | <byte> | <array of bytes> |
-      +--------+------------------+
-      
-    CMD_ID is a byte to identify command, Payload is a array of bytes which
-    size differs depending on the command. USB Messages to MAB have not a
-    fixed size - it is not needed to add trailing zeros.
-    
-    Some messages - GET_DATA, QUERY - provide an answer, which size depends
-    on the command id - it is always the same with a given command id and
-    you have to strip away trailing zeros.
-    
-    Topology is the following:
-                                                     +-------+
-                                              +----> | PUMP1 |
-      +----+             +-----+              |      +-------+
-      | PC | <-- usb --> | MAB | <--- rs485 --+----> | PUMPn |
-      +----+             +-----+                     +-------+
-      
-    In order to select the proper node, each of them has its own *device ID*.
-    MAB has always a *device ID* = 0xFF. If the desired ID is not 0xFF,
-    bootloader acts as a relay node:
-     1. setup the slave node: it send a command on 485 to make it jump to 
-        bootloader;
-     2. transferring data from the PC and vice-versa.
-
-    """
+    """ This class implements the USB communication with bootloader """
     
     PASSWORD_QUERY = [0x82, 0x14, 0x2A, 0x5D, 0x6F, 0x9A, 0x25, 0x01]
     USB_ID_VENDOR = 0x04d8
@@ -563,16 +608,26 @@ class AlfaFirmwareLoader:
                 assert(await node.wait_for_event(
                  node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY, 5) != None)
 
-                # this is a workaround of the following problem:
-                # ENTER_DIAGNOSTIC command may fail and multiple attemps are
-                # required
+                logging.debug("waiting for status_level to reach values 0x06 or 0x04")
+                assert(await node.wait_for_recv_status_parameters(
+                    {"status_level": lambda x: x == 0x06 or x == 0x04},
+                    180) == True)
+
                 ok = False
                 for i in range(0,3):
-                    if (await node.send_request_and_watch(
-                      "ENTER_DIAGNOSTIC", status_params = {"status_level": 0x07},
-                      timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS:
-                         ok = True
-                         break
+                    logging.debug("command the node to enter diagnostic status")
+                    assert (await node.send_request_and_watch(
+                      "ENTER_DIAGNOSTIC",
+                      status_params = {"status_level": 0x07},
+                      timeout_status_sec = 25))[0] == node.RequestWatchResult.SUCCESS
+                    again_to_reset_sts = await node.wait_for_recv_status_parameters(
+                                         {"status_level": lambda x: x != 0x07}, 5)
+                    if not again_to_reset_sts:
+                       ok = True
+                       break
+                    else:
+                       logging.warning("node exited the diagnostic status")
+                        
                 assert ok == True
                 
                 (result, out_params) = await node.send_request_and_watch(

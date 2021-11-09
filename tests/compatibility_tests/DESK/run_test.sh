@@ -47,6 +47,9 @@ flash_boot_test_1_2_3_4() {
     # CAN_LIFTER	≥ 1.6.2	≥ 3.2.0
     # HUMIDIFIER	≥ 1.7.2	≥ 3.2.0
 
+    # MAB
+    flash_boot "MAB" "P24FJ256GB106" "SchedaMAB/BootLoader/bootloaderMABrd_1.0.2.hex"
+
     # SLAVE_1
     flash_boot "SLAVE_1" "P33FJ32MC204" "SchedaSCCB/Bootloader/BootLoaderSCCB_1.5.2.hex"
 
@@ -55,9 +58,6 @@ flash_boot_test_1_2_3_4() {
 
     # CAN_LIFTER
     flash_boot "CAN_LIFTER" "P33FJ32MC204" "SchedaSGABELLO/BOOT/BootLoaderCANLIFTER_1.6.2.hex"
-
-    # MAB
-    flash_boot "MAB" "P24FJ256GB106" "SchedaMAB/BootLoader/bootloaderMABrd_1.0.2.hex"
 
     # HUMIDIFIER
     flash_boot "HUMIDIFIER" "P24FJ64GA704" "SchedaUMIDIFICATORE/BOOT/BootLoaderUMIDIFICATORE_1.7.2.hex"

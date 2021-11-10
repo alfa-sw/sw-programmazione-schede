@@ -1,0 +1,17 @@
+machine-family: CR6
+programs:
+   - board-name: master
+     filename: desk_3.2.5-boot-Slave_1_8_42_43.hex
+     version: 3.2.5
+     boot-version-requisite: 1.0.0
+     addresses: [255]
+     release-date: 2021-11-08
+     checksum: 0x325312
+
+   - board-name: sccb
+     filename: pump-r1-siboot-dipswitch_4_2_0.hex   
+     version: 4.2.0
+     boot-version-requisite: 1.0.0
+     addresses: [1, 8]
+     release-date: 2021-11-08
+     checksum: 0x325312

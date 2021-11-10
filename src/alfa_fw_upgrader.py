@@ -100,7 +100,8 @@ talks to the application using serial port to jump to boot.
 6. send command JUMP_TO_APPLICATION and wait for status_level to go to 0x09
    for a timeout of 5 seconds
 7. wait for 5 seconds, then check USB again
-8. if USB is not available, still use serial port to read from application machine status any error code from the parameter *error_code*.
+8. if USB is not available, still use serial port to read from application 
+   machine status any error code from the parameter *error_code*.
 
 Caveats
 =======
@@ -126,7 +127,10 @@ import struct
 import logging
 
 import time
-
+import zipfile
+from io import BytesIO
+import yaml 
+  
 from hexutils import HexUtils
 from typing import Any, NoReturn
 
@@ -174,6 +178,7 @@ class USBManager:
         self.deviceId = deviceId
     
     def disconnect(self):
+        logging.debug("disconnecting USB")
         usb.util.dispose_resources(self.dev)
     
    
@@ -491,6 +496,7 @@ class AlfaFirmwareLoader:
             "cmdTimeout": cmdTimeout
         }
         logging.debug(f"usb_args: {usb_args}")
+        self.was_app_running = False
         try:
             if pollingMode:
                 startTime = time.time()
@@ -519,6 +525,7 @@ class AlfaFirmwareLoader:
                 try:
                     logging.info("jumping to boot")
                     self.jump_to_boot(serialPort)
+                    self.was_app_running = True
                 except:
                     raise RuntimeError("failed to jump to boot using serial commands")
             try:
@@ -769,4 +776,169 @@ class AlfaFirmwareLoader:
     def disconnect(self):
         self.usb.disconnect()
         
+
+class AlfaPackageLoader:
+
+    def __init__(self, package_data, conn_args, process_callback = None):
+        self.package_data = package_data
+        self.conn_args = conn_args
+        self.process_callback = process_callback
+    
+        self.sts = {
+          "process": {"current_op": "", "step": 0, "total_steps": 0, "subprocess": ""},
+          "subprocess": {"current_op": "", "step": 0, "total_steps": 0}
+        }
+    
+    def report_problem(self, problem):
+        self.process_callback(status = None, problem = problem)
+    
+    def update_status(self, caller, current_op = None, step = None, total_steps = None):
+        if caller == "main":
+          key = "process"
+          self.sts["subprocess"] = {"current_op": "", "step": 0, "total_steps": 0}
+          self.sts["process"]["subprocess"] = ""
+        else:
+          key = "subprocess"
+          self.sts["process"]["subprocess"] = caller
+    
+        if current_op is not None:
+            self.sts[key]["current_op"] = current_op
+        if step is not None:
+            self.sts[key]["step"] = step
+        if current_op is not None:
+            self.sts[key]["total_steps"] = total_steps
+            
+        self.process_callback(status = self.sts, problem = None)
+    
+    def process(self):
+        current_step = 1
+        self.update_status("main", "loading package", 1, 4)
+        self.load_package(self.package_data)
+        
+        current_step += 1
+        self.update_status("main", "initialize", 2, 4)
+        
+        initialize_ok = False
+        try:
+            self.board_init()
+            initialize_ok = True
+        except Exception as e:
+            logging.warning(f"need to reinitialize after programming master ({str(e)})")
+
+        master_node = list(filter(
+         lambda x:x["board-name"] == "master",
+         self.manifest["programs"]))[0]
+        print(self.programs_hex[master_node['filename']][0:50])
+        conn_args = self.conn_args
+        conn_args["deviceId"] = 255
+        conn_args["serialMode"] = False
+        conn_args["pollingMode"] = False
+
+        try:    
+            self.update_status("main", "programming master", 3, 4)        
+            afl = None
+            afl = AlfaFirmwareLoader(**conn_args)
+            afl.erase()
+            hexdata = self.programs_hex[master_node['filename']]
+            afl.program(hexdata)
+            afl.verify(hexdata)
+        except Exception as e:
+            self.report_problem("failed to program master 1st attempt")
+            if not initialize_ok:
+                raise RuntimeError(f"failed to program master and to initialize ({str(e)})")
+        finally:
+            if afl is not None:
+                afl.disconnect()
+            
+        if not initialize_ok:
+            try:    
+                self.board_init()
+            except:
+                raise RuntimeError("failed to initialize")
+            finally:
+                afl.disconnect()
+        
+        program_steps = {}
+        for program in self.manifest["programs"]:
+            for addr in program['addresses']:
+                if addr != 255 and addr in self.slaves_configuration:
+                    program_steps[addr] = program
+        logging.debug(f"programs steps: {program_steps}")
+
+        current_step = 1
+        total_steps = len(program_steps)
+
+        self.update_status("main", "programming slaves", 4, 4)
+        for address, step in program_steps.items():
+            self.update_status("slaves", f"programming slave #{address}",
+               current_step, total_steps)
+
+            conn_args["deviceId"] = address
+            try:    
+                afl = AlfaFirmwareLoader(**conn_args)
+                afl.erase()
+                afl.program(self.programs_hex[step['filename']])
+                afl.disconnect()
+            except:
+                self.report_problem(f"failed to program slave with address {address}")
+                if not initialize_ok:
+                    raise RuntimeError("failed to program master and to initialize")
+
+            current_step += 1
+        
+    def board_init(self):
+        conn_args = self.conn_args
+        conn_args["deviceId"] = 255
+        conn_args["serialMode"] = True
+        conn_args["pollingMode"] = False
+    
+        in_boot_mode = False
+
+        self.update_status("init", "retrieve data version and jump to boot", 1, 3)
+
+        check_invalid_ver = lambda ufl: ufl.was_app_running is False or \
+          ufl.fw_versions is None or ufl.boot_versions is None or \
+          ufl.slaves_configuration is None
+        
+        try:
+            afl = None
+            afl = AlfaFirmwareLoader(**conn_args)         
+            if check_invalid_ver(afl):
+                logging.warning("app was not running or problem in retrieving " 
+                                "version data -> jump to app and retry")
+                self.update_status("init", "jump to app", 2, 3)
+
+                afl.jump()
+                afl.disconnect()
+                time.sleep(5)
+                self.update_status("init", "jump to boot again", 3, 3)
+                afl = AlfaFirmwareLoader(**conn_args)
+                    
+                if check_invalid_ver(afl):
+                      raise RuntimeError("app was not running or problem in retrieving " 
+                                         "version data")
+                                       
+            self.boot_versions = afl.boot_versions
+            self.fw_versions = afl.fw_versions
+            self.slaves_configuration = afl.slaves_configuration
+            
+        except Exception as e:
+            raise e
+        finally:
+            if afl is not None:
+                afl.disconnect()            
+
+      
+    def load_package(self, package_data):
+        fp = BytesIO(package_data)
+        zfp = zipfile.ZipFile(fp, "r")
+             
+        with zfp.open('manifest.txt', 'r') as mfp:
+          self.manifest = yaml.load(mfp, Loader=yaml.SafeLoader)
+        
+        self.programs_hex = {}
+        for program in self.manifest["programs"]:
+          fn = program["filename"]
+          with zfp.open(fn) as f:
+            self.programs_hex[fn] = HexUtils.load_hex_to_array(f.read().decode())
 

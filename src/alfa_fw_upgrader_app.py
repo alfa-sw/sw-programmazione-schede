@@ -7,13 +7,22 @@ import logging
 import os
 import json
 
+import yaml
+
 import eel
+from appdirs import AppDirs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+USERDIR = AppDirs("alfa_fw_upgrader", "Acme").user_data_dir
 
 
 class GUIApplication:
     hex_available = None
+
+    default_settings = {
+        "serial_port": "/dev/ttyUSB0",
+        "strategy": "simple",
+    }
 
     def _get_output(self, error_key, format_arg=None):
         error_item = Application.errors_dict[error_key]
@@ -144,17 +153,50 @@ class GUIApplication:
                     "success": False,
                     "output": self._get_output("COMMAND_FAILED")})
 
+    def get_settings(self):
+        try:
+            with open(os.path.join(USERDIR, '/', 'settings.yaml'), 'r') as f:
+                self.pref = yaml.load(f.read())
+        except BaseException:
+            logging.info("failed to load settings, setting defaults")
+            self.settings = self.default_settings
+
+    def save_settings(self):
+        fn = os.path.join(USERDIR, 'settings.yaml')
+        print(fn)
+        if not os.path.exists(USERDIR):
+            logging.info("mkdir %s", USERDIR)
+            os.mkdir(USERDIR)
+
+        with open(fn, 'w+') as f:
+            f.write(yaml.dump(self.settings))
+
     def __init__(self):
         self.hex_available = False
 
         print("** No arguments given. -h for usage details of command line "
               "interface. Starting GUI **")
+
+        self.get_settings()
+
         path = os.path.join(HERE, "../", "templates", "gui-frontend")
         eel.init(path, allowed_extensions=['.js', '.html'])
 
         @eel.expose  # Expose this function to Javascript
         def say_hello_py(x):
             print('Hello from %s' % x)
+
+        @eel.expose  # Expose this function to Javascript
+        def get_settings():
+            ret = self.settings
+            if self.settings == self.default_settings:
+                ret["_default"] = True
+            return self.settings
+
+        @eel.expose  # Expose this function to Javascript
+        def save_settings(new_settings):
+            self.settings = new_settings
+            self.save_settings()
 
         @eel.expose
         def process_file(file_content):
@@ -181,7 +223,7 @@ class GUIApplication:
             eel.spawn(self.process, setup_dict)
 
     def run(self):
-        eel.start('main.html', size=(700, 500))
+        eel.start('index.html', size=(700, 500), mode=False, port=8080)
 
 
 class Application:

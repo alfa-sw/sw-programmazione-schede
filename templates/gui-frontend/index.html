@@ -12,10 +12,42 @@
     <script type="text/javascript">
       var settings;
       var current_box;
+      var busy = false;
+      var current_process = null;
+      
+      // manual mode variables
+      var manual_hex_ready = false;
+      var manual_connected = false;
+      
       async function html_init() {
         eel.say_hello_py("Javascript World!");       
-        //set_current_box("welcome");
+        set_current_box("welcome");
         load_settings();
+        
+        var el = document.getElementById('manual-device-id');
+        
+        for (var i = 1; i<=254; i++){
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.innerHTML = i.toString() + " (0x" + i.toString(16) + ")";
+          el.appendChild(opt);
+        }
+        
+        manual_result();
+      }
+    
+      function set_current_box(box) {
+        var boxes = [
+          'welcome',
+          'manual',
+          'machine'
+        ];
+        
+        boxes.forEach(function(element) {
+          document.getElementById('box-' + element).style.display = "none";
+        });
+        
+        document.getElementById('box-' + box).style.display = "block";
       }
     
       async function load_settings() {
@@ -28,6 +60,7 @@
       }
 
       function save_settings() {
+        console.log("save");
         settings.serial_port = document.getElementById('setting-serial-port').value;
         settings.strategy = document.getElementById('setting-strategy').value;
         eel.save_settings(settings);         
@@ -40,7 +73,98 @@
       function close_settings_box() {
         document.getElementById('settings-box').classList.remove('is-active');      
       }
-            
+      
+      function set_busy(is_busy, process_name = null) {
+        busy = is_busy;
+               
+        var buttons = Array.from(document.getElementsByClassName("button"));
+        
+        if (is_busy) {
+          current_process = process_name;
+          buttons.forEach(el => el.setAttribute("disabled", true));
+        } else {
+          current_process = null;
+          buttons.forEach(el => el.removeAttribute("disabled"));
+        }
+      }
+      
+      function loadFile(dom_id, callback) {
+        var inputField = document.getElementById(dom_id);
+        var selectedFiles = inputField.files;
+        for(var i=0; i<selectedFiles.length; i++) {
+            var file = selectedFiles[i];
+            var reader = new FileReader();
+            reader.onload = function(loadedEvent) {
+                // result contains loaded file.
+                var file_content = loadedEvent.target.result;
+                set_busy(true, "load_hex");                
+                callback(file_content);
+            }
+            reader.readAsText(file);
+            break; // consider only the 1st file
+        }   
+      } 
+      
+      function load_hex_file() {
+        loadFile('manual-file-input', eel.process_hex)
+      }
+
+      function connect() {
+        set_busy(true, "connect");
+        
+        eel.process_manual({
+          'action': 'connect',
+          'device_id': document.getElementById('manual-device-id').value
+          });
+      }
+
+      eel.expose(update_process_js); // Expose this function to Python
+      function update_process_js(process_sts) {
+        console.log(process_sts);
+        manual_result(process_sts);
+      }
+      
+      function manual_result(process_sts = null) {
+        if (current_process == "load_hex") {
+          var text, cls;
+          if (process_sts.result == "ok") {
+            text = "File loaded correctly.";
+            cls = "is-success";
+          } else {
+            text = "Failed to load file.<br> " + process_sts.output;
+            cls = "is-danger";
+          }        
+          id = "manual-message-hex";
+          var parent = document.querySelector("#" + id);        
+          var child = document.querySelector("#" + id + " > .message-body");
+          parent.style.display = "block";
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          parent.classList.add(cls);
+          child.innerHTML = text;
+          manual_hex_ready = true;
+
+        } else if (current_process == "connect") {
+        
+        }
+
+        set_busy(false);
+        
+        var children = document.querySelectorAll("#manual-operation-buttons button");
+
+        if (!manual_connected) {
+          children.forEach(el => el.setAttribute("disabled", true));
+        } else {
+          children.forEach(el => el.removeAttribute("disabled"))
+        }
+        
+        if (manual_hex_ready && manual_connected) {
+            var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
+            children.forEach(el => el.removeAttribute("disabled"))
+        }
+      }
+      
+      
     </script>
   </head>
   <body onload="html_init()">
@@ -56,18 +180,15 @@
         <div class="navbar-start">       
           <div class="navbar-item">
             <div class="buttons">
-              <a class="button">
+              <button class="button" onclick="set_current_box('welcome')">
                 <strong>Welcome</strong>
-              </a>
-              <a class="button">
-                <strong>Settings</strong>
-              </a>
-              <a class="button">
+              </button>
+              <button class="button" onclick="set_current_box('manual')">
                 <strong>Manual update</strong>
-              </a>
-              <a class="button">
+              </button>
+              <button class="button" onclick="set_current_box('machine')">
                 <strong>Machine update</strong>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -75,9 +196,9 @@
         <div class="navbar-end">
           <div class="navbar-item">
             <div class="buttons">
-              <a class="button is-primary">
+              <button class="button is-primary" onclick="open_settings_box()">
                 <strong>Settings</strong>
-              </a>
+              </button>
             </div>
           </div>
           
@@ -99,14 +220,14 @@
           <article class="tile is-child notification is-dark-grey">
             <p class="title">adjust settings</p>
             <p class="subtitle">set the parameters to connect to main board.</p>
-            <p class="buttons"><a class="button">Go to settings</a></p>
+            <p class="buttons"><button class="button">Go to settings</button></p>
           </article>
         </div>
         <div class="tile is-parent">
           <article class="tile is-child notification  is-dark-grey">
-            <p class="title">single mode</p>
+            <p class="title">manual update</p>
             <p class="subtitle">in this mode you can program a single board.</p>
-            <p class="buttons"><a class="button">Go to page</a></p>
+            <p class="buttons"><button class="button">Go to page</button></p>
           </article>
         </div>
         <div class="tile is-parent">
@@ -114,14 +235,71 @@
             <div class="content">
               <p class="title">machine update</p>
               <p class="subtitle">in this mode you can update from a package.</p>
-              <p class="buttons"><a class="button">Go to page</a></p>              
+              <p class="buttons"><button class="button">Go to page</button></p>
             </div>
           </article>
         </div>
       </div>      
     </div>
 
-    <div class="box" id="box-settings">
+    <div class="box" id="box-manual">
+      <div class="field">
+        <label class="label">Device address</label>
+        <div class="control">
+          <div class="select">
+            <select id="manual-device-id">
+              <option value="255">255 (0xFF) - master</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Hex file</label>
+        <div class="control">
+          <input type="file" id="manual-file-input">
+          <button class="button" id="manual-btn-load" onclick="load_hex_file();">Load</button>
+        </div>
+        <article class="message is-success" id="manual-message-hex" style="display:none;">
+          <div class="message-body">
+            Test
+          </div>
+        </article>
+      </div>
+      
+      <div class="buttons" >
+        <button class="button is-primary is-fullwidth is-light" id="manual-btn-connect" onclick="connect();">Connect to device</button>
+        <div class="tile is-ancestor box" id="manual-operation-buttons">
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('info');">Get info</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program');">Program</button>        
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('verify');">Verify</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program_and_verify');">Program &amp; Verify</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('jump');">Jump to application</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('reset');">Reset boards</button>
+          </div>
+        </div>
+      </div>
+      <article class="message is-success" id="manual-message-operation" style="display:none;">
+        <div class="message-header">
+          Operation result
+        </div>
+        <div class="message-body">
+          Test
+        </div>
+      </article>
+    </div>
+
+    <div class="box" id="box-machine">
     
     </div>
 
@@ -130,7 +308,7 @@
       <div class="modal-card">
         <header class="modal-card-head">
           <p class="modal-card-title">Settings</p>
-          <button class="delete" aria-label="close"></button>
+          <button class="delete" aria-label="close" onclick="close_settings_box()"></button>
         </header>
         <section class="modal-card-body">
           <div class="field">
@@ -153,8 +331,8 @@
           </div>
         </section>
         <footer class="modal-card-foot">
-          <button class="button is-success" onclick="save_settings();">Save changes</button>
-          <button class="button">Cancel</button>
+          <button class="button is-success" onclick="save_settings(); close_settings_box();">Save changes</button>
+          <button class="button" onclick="close_settings_box();">Cancel</button>
         </footer>
       </div>
     </div>

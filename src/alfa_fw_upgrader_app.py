@@ -38,7 +38,7 @@ class GUIApplication:
 
         return text
 
-    def process(self, setup_dict):
+    def process_manual(self, setup_dict):
         print(setup_dict)
 
         device_id = int(setup_dict["device_id"])
@@ -155,15 +155,16 @@ class GUIApplication:
 
     def get_settings(self):
         try:
-            with open(os.path.join(USERDIR, '/', 'settings.yaml'), 'r') as f:
-                self.pref = yaml.load(f.read())
+            with open(os.path.join(USERDIR, 'settings.yaml'), 'r') as f:
+                self.settings = yaml.load(f.read(), Loader=yaml.SafeLoader)
+            self.settings_from_default = False
         except BaseException:
             logging.info("failed to load settings, setting defaults")
-            self.settings = self.default_settings
+            self.settings = self.default_settings.copy()
+            self.settings_from_default = True
 
     def save_settings(self):
         fn = os.path.join(USERDIR, 'settings.yaml')
-        print(fn)
         if not os.path.exists(USERDIR):
             logging.info("mkdir %s", USERDIR)
             os.mkdir(USERDIR)
@@ -188,39 +189,37 @@ class GUIApplication:
 
         @eel.expose  # Expose this function to Javascript
         def get_settings():
-            ret = self.settings
-            if self.settings == self.default_settings:
+            ret = self.settings.copy()
+            if self.settings_from_default:
                 ret["_default"] = True
-            return self.settings
+            return ret
 
         @eel.expose  # Expose this function to Javascript
         def save_settings(new_settings):
-            self.settings = new_settings
+            self.settings = {}
+            for k, s in self.default_settings.items():
+                self.settings[k] = new_settings[k]
             self.save_settings()
 
         @eel.expose
-        def process_file(file_content):
-            eel.start_process_js()
+        def process_hex(file_content):
+            logging.info("processing hex file")
             try:
                 self.program_data = HexUtils.load_hex_to_array(file_content)
-                eel.stop_process_js({
-                    "success": True,
+                eel.update_process_js({
+                    "result": "ok",
                     "output": ""})
                 self.hex_available = True
             except Exception as e:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
                 self.hex_available = False
-
-            eel.is_hex_available_js(self.hex_available)
-
-        eel.say_hello_js('Python World!')  # Call a Javascript function
 
         @eel.expose
         def process(setup_dict):
             eel.start_process_js()
-            eel.spawn(self.process, setup_dict)
+            self.process(setup_dict)
 
     def run(self):
         eel.start('index.html', size=(700, 500), mode=False, port=8080)

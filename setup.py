@@ -7,10 +7,11 @@ import os
 import glob
 
 from setuptools import setup, find_packages
+from runpy import run_path
 
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, '__version__'), encoding='utf-8') as f:
-    __version__ = f.read().strip()
+
+__version__ = run_path(os.path.join(here, 'src', 'version.py'))["__version__"]
 
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     __readme__ = f.read().strip()

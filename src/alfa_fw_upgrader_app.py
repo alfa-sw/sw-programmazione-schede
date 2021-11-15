@@ -1,4 +1,5 @@
 from alfa_fw_upgrader import AlfaFirmwareLoader, AlfaPackageLoader, HexUtils
+from version import __version__
 
 import argparse
 import sys

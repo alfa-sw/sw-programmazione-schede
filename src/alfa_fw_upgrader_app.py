@@ -33,43 +33,46 @@ class GUIApplication:
         if "hints" in error_item:
             for h in error_item["hints"]:
                 hints += "<li>" + h + "</li>"
-        text = "The following error occured during execution: <ul>"
-        text += descr + "</ul>"
-        text += f"Hints:{hints}" if hints else ""
+        text = "The following error occured during execution: <b>"
+        text += descr + "</b>"
+        text += f"<br>Hints:<ol>{hints}</ol>" if hints else ""
 
         return text
 
     def process_manual(self, setup_dict):
-        print(setup_dict)
+        # print(setup_dict)
 
-        device_id = int(setup_dict["device_id"])
         action = setup_dict["action"]
+        # print(setup_dict)
+        if action == "connect":
+            try:
+                device_id = int(setup_dict["device_id"])
+                self.ufl = AlfaFirmwareLoader(
+                    deviceId=device_id,
+                    serialMode=self.settings["strategy"] == "serial",
+                    pollingMode=self.settings["strategy"] == "polling",
+                    serialPort=self.settings["serial_port"])
+                eel.update_process_js({"result": "ok", "output": ""})
 
-        if action == "connect-disconnect":
+            except Exception as e:
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": self._get_output("INIT_FAILED", str(e))})
+        elif action == "disconnect":
             try:
                 self.ufl.disconnect()
                 del self.ufl
-                eel.stop_process_js({
-                    "success": True,
+                eel.update_process_js({
+                    "result": "ok",
                     "output": ""})
-                eel.is_board_initialized_js(False)
-            except AttributeError:
-                try:
-                    self.ufl = AlfaFirmwareLoader(
-                        deviceId=device_id,
-                        serialMode=setup_dict["strategy"] == "serial",
-                        pollingMode=setup_dict["strategy"] == "polling",
-                        serialPort=setup_dict["serial_port"])
-                    eel.stop_process_js({"success": True, "output": ""})
-                    eel.is_board_initialized_js(True)
-                except Exception as e:
-                    eel.stop_process_js({
-                        "success": False,
-                        "output": self._get_output("INIT_FAILED", str(e))})
-                    eel.is_board_initialized_js(False)
+            except AttributeError as e:
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": self._get_output("INIT_FAILED", str(e))})
+
         elif action == "info":
-            eel.stop_process_js({
-                "success": True,
+            eel.update_process_js({
+                "result": "ok",
                 "output": "Memory start address: {} / length: {}\n"
                 "Boot version: {}\n"
                 "Boot versions: {}\n"
@@ -90,69 +93,73 @@ class GUIApplication:
             try:
                 self.ufl.erase()
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "ok",
                     "output": self._get_output("ERASE_FAILED")})
             try:
                 self.ufl.program(self.program_data)
-                eel.stop_process_js({"success": True, "output": ""})
+                eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("PROGRAM_FAILED")})
         elif action == 'verify':
             try:
                 if self.ufl.verify(self.program_data) is False:
-                    eel.stop_process_js({
-                        "success": False,
+                    eel.update_process_js({
+                        "result": "fail",
                         "output": self._get_output("VERIFY_DATA_MISMATCH")})
                 else:
-                    eel.stop_process_js({"success": True, "output": ""})
+                    eel.update_process_js({"result": "ok", "output": ""})
             except Exception as e:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
         elif action == 'program_and_verify':
             try:
                 self.ufl.erase()
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("ERASE_FAILED")})
             try:
                 self.ufl.program(self.program_data)
-                eel.stop_process_js({"success": True, "output": ""})
+                eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("PROGRAM_FAILED")})
             try:
                 if self.ufl.verify(self.program_data) is False:
-                    eel.stop_process_js({
-                        "success": False,
+                    eel.update_process_js({
+                        "result": "fail",
                         "output": self._get_output("VERIFY_DATA_MISMATCH")})
                 else:
-                    eel.stop_process_js({"success": True, "output": ""})
+                    eel.update_process_js({"result": "ok", "output": ""})
             except Exception as e:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
         elif action == 'jump':
             try:
                 self.ufl.jump()
-                eel.stop_process_js({"success": True, "output": ""})
+                eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("COMMAND_FAILED")})
         elif action == 'reset':
             try:
                 self.ufl.reset()
-                eel.stop_process_js({"success": True, "output": ""})
+                eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
-                eel.stop_process_js({
-                    "success": False,
+                eel.update_process_js({
+                    "result": "fail",
                     "output": self._get_output("COMMAND_FAILED")})
+        else:
+            eel.update_process_js({
+                "result": "fail",
+                "output": "invalid action"})
 
     def get_settings(self):
         try:
@@ -185,8 +192,8 @@ class GUIApplication:
         eel.init(path, allowed_extensions=['.js', '.html'])
 
         @eel.expose  # Expose this function to Javascript
-        def say_hello_py(x):
-            print('Hello from %s' % x)
+        def say_hello_py():
+            return __version__
 
         @eel.expose  # Expose this function to Javascript
         def get_settings():
@@ -218,9 +225,8 @@ class GUIApplication:
                 self.hex_available = False
 
         @eel.expose
-        def process(setup_dict):
-            eel.start_process_js()
-            self.process(setup_dict)
+        def process_manual(setup_dict):
+            self.process_manual(setup_dict)
 
     def run(self):
         eel.start('index.html', size=(700, 500), mode=False, port=8080)
@@ -403,7 +409,7 @@ To perform verify only, with debug info and reset,
 
         if len(sys.argv) < 2:
             logging.basicConfig(
-                stream=sys.stdout, level="INFO",
+                stream=sys.stdout, level="DEBUG",
                 format="[%(asctime)s]%(levelname)s %(funcName)s() "
                        "%(filename)s:%(lineno)d %(message)s")
             gui = GUIApplication()

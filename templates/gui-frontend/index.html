@@ -20,12 +20,14 @@
       var manual_connected = false;
       
       async function html_init() {
-        eel.say_hello_py("Javascript World!");       
+       
         set_current_box("welcome");
         load_settings();
         
-        var el = document.getElementById('manual-device-id');
+        document.getElementById('header-info')
+         .innerHTML = "version " + await eel.say_hello_py()();
         
+        var el = document.getElementById('manual-device-id');
         for (var i = 1; i<=254; i++){
           var opt = document.createElement('option');
           opt.value = i;
@@ -109,12 +111,25 @@
         loadFile('manual-file-input', eel.process_hex)
       }
 
-      function connect() {
-        set_busy(true, "connect");
+      function connect_disconnect() {
+        var action = !manual_connected ? 'connect' : 'disconnect';
+        set_busy(true, action);
+        document.getElementById('manual-progress').style.display = "block";
+        document.getElementById("manual-message-operation").style.display = "none";
         
         eel.process_manual({
-          'action': 'connect',
+          'action': action,
           'device_id': document.getElementById('manual-device-id').value
+          });
+      }
+
+      function manual_operation(operation) {
+        set_busy(true, operation);
+        document.getElementById('manual-progress').style.display = "block";
+        document.getElementById("manual-message-operation").style.display = "none";
+        
+        eel.process_manual({
+          'action': operation,
           });
       }
 
@@ -144,8 +159,39 @@
           child.innerHTML = text;
           manual_hex_ready = true;
 
-        } else if (current_process == "connect") {
-        
+        } else if (current_process != null) {
+          var text, title, cls;
+          if (process_sts.result == "ok") {
+            text = "Operation completed successfully<br>" +
+                   (process_sts.output != "" ? "<pre>" + process_sts.output + "</pre>" : "");
+            title = "Success"
+            cls = "is-success";
+          } else {
+            title = "Failure";          
+            text = process_sts.output;
+            cls = "is-danger";
+          }
+
+          if (current_process == "jump" || current_process == "reset")
+            connect_disconnect();
+          
+          id = "manual-message-operation";
+          var parent = document.querySelector("#" + id);        
+          var header = document.querySelector("#" + id + " > .message-header");
+          var body = document.querySelector("#" + id + " > .message-body");
+          parent.style.display = "block";
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          parent.classList.add(cls);
+          body.innerHTML = text;
+          header.innerHTML = title;
+          
+          if (current_process == "connect")
+            manual_connected = (process_sts.result == "ok");
+          else if (current_process == "disconnect") 
+            manual_connected = (process_sts.result != "ok");
+          
+          document.getElementById('manual-progress').style.display = "none";
         }
 
         set_busy(false);
@@ -154,14 +200,17 @@
 
         if (!manual_connected) {
           children.forEach(el => el.setAttribute("disabled", true));
+          document.getElementById('manual-btn-connect').innerHTML = "Connect to device";
         } else {
           children.forEach(el => el.removeAttribute("disabled"))
+          document.getElementById('manual-btn-connect').innerHTML = "Disconnect";          
+        }
+
+        if (!manual_hex_ready) {
+            var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
+            children.forEach(el => el.setAttribute("disabled", true));
         }
         
-        if (manual_hex_ready && manual_connected) {
-            var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
-            children.forEach(el => el.removeAttribute("disabled"))
-        }
       }
       
       
@@ -202,8 +251,8 @@
             </div>
           </div>
           
-          <div class="navbar-item">
-            Current status: STATUS
+          <div class="navbar-item" id="header-info">
+            Initializing
           </div>
           
         </div>
@@ -267,7 +316,7 @@
       </div>
       
       <div class="buttons" >
-        <button class="button is-primary is-fullwidth is-light" id="manual-btn-connect" onclick="connect();">Connect to device</button>
+        <button class="button is-primary is-fullwidth is-light" id="manual-btn-connect" onclick="connect_disconnect();">Connect to device</button>
         <div class="tile is-ancestor box" id="manual-operation-buttons">
           <div class="tile">
             <button class="button is-fullwidth"  onclick="manual_operation('info');">Get info</button>
@@ -289,6 +338,7 @@
           </div>
         </div>
       </div>
+      <progress id="manual-progress" class="progress is-large is-primary" max="100" style="display:none;"></progress>      
       <article class="message is-success" id="manual-message-operation" style="display:none;">
         <div class="message-header">
           Operation result

@@ -498,7 +498,6 @@ class AlfaFirmwareLoader:
             if pollingMode:
                 startTime = time.time()
                 i = 0
-                exc = None
                 usb = None
                 while not usb and time.time() - startTime < pollingInterval:
                     try:
@@ -509,8 +508,8 @@ class AlfaFirmwareLoader:
                         logging.debug(
                             f"Polling USB, failed for the {i}-th time")
                         time.sleep(0.1)
-                if not self.usb:
-                    raise exc
+                if not usb:
+                    raise RuntimeError('failed to connect')
             else:
                 self.usb = USBManager(**usb_args)
 
@@ -518,7 +517,7 @@ class AlfaFirmwareLoader:
             # jump-to-application
             self.usb.QUERY(altDeviceId=0)
         except Exception as e:
-            logging.info(f"USB connection failed {e}")
+            logging.info(f"USB connection failed: {e}")
             if serialMode:
                 try:
                     logging.info("jumping to boot")
@@ -695,8 +694,8 @@ class AlfaFirmwareLoader:
             logging.warning("erase procedure not performed")
 
         try:
-            program_segment = program_data[self.starting_address *
-                                           2: self.starting_address * 2 + self.memory_length * 2]
+            program_segment = program_data[self.starting_address * \
+                2: self.starting_address * 2 + self.memory_length * 2]
         except BaseException:
             raise RuntimeError("dimension of program does not fit memory")
 
@@ -731,8 +730,8 @@ class AlfaFirmwareLoader:
         """
 
         try:
-            program_segment = program_data[self.starting_address *
-                                           2: self.starting_address * 2 + self.memory_length * 2]
+            program_segment = program_data[self.starting_address * \
+                2: self.starting_address * 2 + self.memory_length * 2]
         except BaseException:
             raise RuntimeError("dimension of program does not fit memory")
 

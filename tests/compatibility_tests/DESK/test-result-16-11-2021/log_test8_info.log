@@ -1,0 +1,8 @@
+flashing , device=
++ alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 255 info jump
+Boot version: 1.0.2
+Memory start address: 11264 / length: 162816
+Boot versions: N/A
+FW versions: N/A
+FW versions JSON: N/A
+Slaves enabled addresses: N/A

@@ -1,0 +1,156 @@
+flashing MAB SchedaMAB/BootLoader/bootloaderMABrd_1.0.2.hex to P24FJ256GB106
+Press [Enter] key to continue...+ /opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-linux_x64/bin/java -jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar -P24FJ256GB106 -L -E -TSBUR210573935 -M -FSchedaMAB/BootLoader/bootloaderMABrd_1.0.2.hex
+DFP Version Used : PIC24F-GA-GB_DFP,1.4.141,Microchip
+Selected Programming Tool Sno: 
+BUR210573935
+*****************************************************
+Connecting to MPLAB PICkit 4...
+Currently loaded versions:
+Application version............00.06.87
+Boot version...................01.00.00
+Script version.................00.04.48
+Script build number............7acb7c9d66
+Tool pack version .............1.8.1120
+Target voltage detected
+Target device PIC24FJ256GB106 found.
+Device Revision Id  = 0x4
+*****************************************************
+Erasing...
+Erase successful
+*****************************************************
+Calculating memory ranges for operation...
+Erasing...
+The following memory area(s) will be programmed:
+program memory: start address = 0x0, end address = 0x2bff
+configuration memory
+Programming/Verify complete
+ Program Report
+16-nov-2021, 14:54:39
+Device Type:PIC24FJ256GB106
+Program Succeeded.
+Operation Succeeded
+flashing SLAVE_1 SchedaSCCB/Bootloader/BootLoaderSCCB_1.5.2.hex to P33FJ32MC204
+Press [Enter] key to continue...+ /opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-linux_x64/bin/java -jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar -P33FJ32MC204 -L -E -TSBUR210573935 -M -FSchedaSCCB/Bootloader/BootLoaderSCCB_1.5.2.hex
+DFP Version Used : dsPIC33F-GP-MC_DFP,1.3.64,Microchip
+Selected Programming Tool Sno: 
+BUR210573935
+*****************************************************
+Connecting to MPLAB PICkit 4...
+Currently loaded versions:
+Application version............00.06.87
+Boot version...................01.00.00
+Script version.................00.04.48
+Script build number............7acb7c9d66
+Tool pack version .............1.8.1120
+Target voltage detected
+Target device dsPIC33FJ32MC204 found.
+Device Revision Id  = 0x3006
+*****************************************************
+Erasing...
+Erase successful
+*****************************************************
+Calculating memory ranges for operation...
+Erasing...
+The following memory area(s) will be programmed:
+program memory: start address = 0x0, end address = 0x17ff
+configuration memory
+Programming/Verify complete
+ Program Report
+16-nov-2021, 14:55:23
+Device Type:DSPIC33FJ32MC204
+Program Succeeded.
+Operation Succeeded
+flashing SLAVE_8 SchedaSCCB/Bootloader/BootLoaderSCCB_1.5.1.hex to P33FJ32MC204
+Press [Enter] key to continue...+ /opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-linux_x64/bin/java -jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar -P33FJ32MC204 -L -E -TSBUR210573935 -M -FSchedaSCCB/Bootloader/BootLoaderSCCB_1.5.1.hex
+DFP Version Used : dsPIC33F-GP-MC_DFP,1.3.64,Microchip
+Selected Programming Tool Sno: 
+BUR210573935
+*****************************************************
+Connecting to MPLAB PICkit 4...
+Currently loaded versions:
+Application version............00.06.87
+Boot version...................01.00.00
+Script version.................00.04.48
+Script build number............7acb7c9d66
+Tool pack version .............1.8.1120
+Target voltage detected
+Target device dsPIC33FJ32MC204 found.
+Device Revision Id  = 0x3006
+*****************************************************
+Erasing...
+Erase successful
+*****************************************************
+Calculating memory ranges for operation...
+Erasing...
+The following memory area(s) will be programmed:
+program memory: start address = 0x0, end address = 0x17ff
+configuration memory
+Programming/Verify complete
+ Program Report
+16-nov-2021, 14:56:13
+Device Type:DSPIC33FJ32MC204
+Program Succeeded.
+Operation Succeeded
+flashing CAN_LIFTER SchedaSGABELLO/BOOT/BootLoaderCANLIFTER_1.6.2.hex to P33FJ32MC204
+Press [Enter] key to continue...+ /opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-linux_x64/bin/java -jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar -P33FJ32MC204 -L -E -TSBUR210573935 -M -FSchedaSGABELLO/BOOT/BootLoaderCANLIFTER_1.6.2.hex
+DFP Version Used : dsPIC33F-GP-MC_DFP,1.3.64,Microchip
+Selected Programming Tool Sno: 
+BUR210573935
+*****************************************************
+Connecting to MPLAB PICkit 4...
+Currently loaded versions:
+Application version............00.06.87
+Boot version...................01.00.00
+Script version.................00.04.48
+Script build number............7acb7c9d66
+Tool pack version .............1.8.1120
+Target voltage detected
+Target device dsPIC33FJ32MC204 found.
+Device Revision Id  = 0x3006
+*****************************************************
+Erasing...
+Erase successful
+*****************************************************
+Calculating memory ranges for operation...
+Erasing...
+The following memory area(s) will be programmed:
+program memory: start address = 0x0, end address = 0x17ff
+configuration memory
+Programming/Verify complete
+ Program Report
+16-nov-2021, 14:56:44
+Device Type:DSPIC33FJ32MC204
+Program Succeeded.
+Operation Succeeded
+flashing HUMIDIFIER SchedaUMIDIFICATORE/BOOT/BootLoaderUMIDIFICATORE_1.7.2.hex to P24FJ64GA704
+Press [Enter] key to continue...+ /opt/microchip/mplabx/v5.50/sys/java/zulu8.40.0.25-ca-fx-jre8.0.222-linux_x64/bin/java -jar /opt/microchip/mplabx/v5.50/mplab_platform/mplab_ipe/ipecmd.jar -P24FJ64GA704 -L -E -TSBUR210573935 -M -FSchedaUMIDIFICATORE/BOOT/BootLoaderUMIDIFICATORE_1.7.2.hex
+DFP Version Used : PIC24F-GA-GB_DFP,1.4.141,Microchip
+Selected Programming Tool Sno: 
+BUR210573935
+*****************************************************
+Connecting to MPLAB PICkit 4...
+Currently loaded versions:
+Application version............00.06.87
+Boot version...................01.00.00
+Script version.................00.04.48
+Script build number............7acb7c9d66
+Tool pack version .............1.8.1120
+Target voltage detected
+Target device PIC24FJ64GA704 found.
+Device Revision Id  = 0x3
+*****************************************************
+Erasing...
+Erase successful
+*****************************************************
+Calculating memory ranges for operation...
+Erasing...
+The following memory area(s) will be programmed:
+program memory: start address = 0x0, end address = 0x27ff
+program memory: start address = 0x7800, end address = 0x7fff
+configuration memory
+Programming/Verify complete
+ Program Report
+16-nov-2021, 14:57:17
+Device Type:PIC24FJ64GA704
+Program Succeeded.
+Operation Succeeded

@@ -31,7 +31,19 @@ flash_app () {
     FILE=$2
     echo flashing $FILE, device=$ID
     #read -p "Press [Enter] key to continue..."
-    (set -x; alfa_fw_upgrader -cr 5 -s serial -d $ID -f $FILE program verify jump)
+    (set -x; alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d $ID -f $FILE info program verify jump)
+    if [ ! $? -eq 0 ]; then
+        echo "failed to update"
+        exit 1
+    fi
+}
+
+get_info () {
+    ID=$1
+    FILE=$2
+    echo flashing $FILE, device=$ID
+    #read -p "Press [Enter] key to continue..."
+    (set -x; alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 255 info jump)
     if [ ! $? -eq 0 ]; then
         echo "failed to update"
         exit 1
@@ -75,11 +87,12 @@ flash_app_test_1_5_6_7_8() {
     # MAB
     flash_app "255" "SchedaMAB/Applicativo/desk_3.2.5-boot-Slave_1_8_42_43.hex"
 
-    # SLAVE_1
-    flash_app "1" "SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex"
-
     # SLAVE_8
     flash_app "8" "SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex"
+
+
+    # SLAVE_1
+    flash_app "1" "SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex"
 
     # CAN_LIFTER (42)
     flash_app "42" "SchedaSGABELLO/APPLICATIVI/can_lifter-boot-dipswitch_3.2.0.hex"
@@ -283,6 +296,8 @@ case $TEST_ID in
        flash_boot_test_1_2_3_4
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_1_5_6_7_8
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info
     else
        echo "Invalid selection"
        exit 2
@@ -293,6 +308,8 @@ case $TEST_ID in
        flash_boot_test_1_2_3_4
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_2
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info
     else
        echo "Invalid selection"
        exit 2
@@ -303,6 +320,8 @@ case $TEST_ID in
        flash_boot_test_1_2_3_4
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_3
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info
     else
        echo "Invalid selection"
        exit 2
@@ -313,6 +332,8 @@ case $TEST_ID in
        flash_boot_test_1_2_3_4
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_4
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info       
     else
        echo "Invalid selection"
        exit 2
@@ -323,6 +344,8 @@ case $TEST_ID in
        flash_boot_test_5
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_1_5_6_7_8
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info       
     else
        echo "Invalid selection"
        exit 2
@@ -333,6 +356,8 @@ case $TEST_ID in
        flash_boot_test_6
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_1_5_6_7_8
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info       
     else
        echo "Invalid selection"
        exit 2
@@ -343,6 +368,8 @@ case $TEST_ID in
        flash_boot_test_7
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_1_5_6_7_8
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info       
     else
        echo "Invalid selection"
        exit 2
@@ -353,6 +380,8 @@ case $TEST_ID in
        flash_boot_test_8
     elif [[ "$TYPE" == "app" ]]; then
        flash_app_test_1_5_6_7_8
+    elif [[ "$TYPE" == "info" ]]; then
+       get_info       
     else
        echo "Invalid selection"
        exit 2

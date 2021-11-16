@@ -1,0 +1,21 @@
+flashing SchedaMAB/Applicativo/desk_3.2.5-boot-Slave_1_8_42_43.hex, device=255
++ alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 255 -f SchedaMAB/Applicativo/desk_3.2.5-boot-Slave_1_8_42_43.hex info program verify jump
+Boot version: N/A
+Memory start address: 11264 / length: 162816
+Boot versions: N/A
+FW versions: N/A
+FW versions JSON: N/A
+Slaves enabled addresses: N/A
+flashing SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex, device=8
++ alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 8 -f SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex info program verify jump
+The following error occured during execution: Failed to initialize (failed to jump to boot using serial commands)
+Increment level of verbosity to get exception
+
+Hints:
+ - Check if the device is powered up and correctly connected
+ - Check if the device is in boot mode
+ - Check if the driver is working correctly. On windows, run Zadig and select WinUSB driver for this device and be sure to have library libusb-1.0.dll in c:\Windows\System32
+ - Check if the serial port is correctly plugged in and theserial port is correct, if using bootloader '2.0'
+
+Return value is 3
+failed to update

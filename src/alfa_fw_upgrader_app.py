@@ -253,7 +253,7 @@ class GUIApplication:
 
     def process_machine(self, filedata):
         problems = []
-        self.stopped = False
+        self.stop_request = False
 
         def callback(status=None, problem=None):
             if status is not None:
@@ -292,19 +292,28 @@ class GUIApplication:
         print("Starting to update...")
         try:
             apl.process()
+        except AlfaPackageLoader.UserInterrupt:
+            eel.update_process_js({
+                "result": "fail",
+                "output": "Process aborted"})
         except Exception as e:
             eel.update_process_js({
                 "result": "fail",
                 "output": self._get_output("UPDATE_FAILED", str(e))})
-
-        print("Update finished")
+            #~ traceback.print_exc(file=sys.stderr)
+        else:
+            eel.update_process_js({"result": "ok", "output": ""})
+        logging.info("Update finished")
 
     def run(self):
         logging.basicConfig(
             stream=sys.stdout, level="DEBUG",
             format="[%(asctime)s]%(levelname)s %(funcName)s() "
                    "%(filename)s:%(lineno)d %(message)s")
-        eel.start('index.html', size=(700, 500), mode=False, port=8080)
+
+        # to start without opening a new browser:
+        #~ eel.start('index.html', size=(1024, 500), mode=False, port=8080)
+        eel.start('index.html', size=(1024, 500))
 
 
 class Application:

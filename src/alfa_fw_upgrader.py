@@ -223,6 +223,7 @@ class USBManager:
         """ send a message to USB endpoint """
 
         data_to_send = list(data)
+        # TODO use lazy evaluation here
         logging.debug("Writing data: {}".format(
             " ".join(["%02X" % int(b) for b in bytes(data_to_send)])
         ))
@@ -243,6 +244,8 @@ class USBManager:
 
         timeout = timeout if not None else self.cmd_timeout
         ret = self.dev.read(self.ep_in, length, timeout)
+
+        # TODO use lazy evaluation here
         logging.debug("Read data: {}".format(
             " ".join(["%02X" % int(b) for b in bytes(ret)])
         ))
@@ -672,8 +675,9 @@ class AlfaFirmwareLoader:
             finally:
                 await endpoint.disconnect()
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(operations())
+        # using threads requires to create a new event loop
+        event_loop = asyncio.new_event_loop()
+        event_loop.run_until_complete(operations())
 
     def erase(self) -> NoReturn:
         """ erase application memory. """
@@ -780,6 +784,8 @@ class AlfaFirmwareLoader:
 
 
 class AlfaPackageLoader:
+    class UserInterrupt(Exception):
+        pass
 
     def __init__(self, package_data, conn_args, process_callback=None):
         self.package_data = package_data
@@ -823,7 +829,7 @@ class AlfaPackageLoader:
             self.sts[key]["total_steps"] = total_steps
 
         if self.process_callback(status=self.sts, problem=None):
-            raise KeyboardInterrupt
+            raise self.UserInterrupt
 
     def process(self):
         current_step = 1
@@ -844,7 +850,7 @@ class AlfaPackageLoader:
         master_node = list(filter(
             lambda x: x["board-name"] == "master",
             self.manifest["programs"]))[0]
-        print(self.programs_hex[master_node['filename']][0:50])
+
         conn_args = self.conn_args
         conn_args["deviceId"] = 255
         conn_args["serialMode"] = False

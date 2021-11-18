@@ -21,7 +21,7 @@
       
       // machine upgrade mode variables
       var machine_busy = false;
-      var machine_messages = [];
+      var machine_problems = [];
 
       async function html_init() {
        
@@ -227,7 +227,7 @@
           parent.style.display = "block";
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
-          parent.classList.add(cls);
+          if (cls != "") parent.classList.add(cls);
           body.innerHTML = text;
           header.innerHTML = title;
           
@@ -264,25 +264,28 @@
           
           if (process_sts == null) {
             document.querySelector("#machine-message-operation").style.display = "block";
-            document.querySelector("#machine-progress-task").removeAttribute("value");
-            document.querySelector("#machine-progress-subtask").removeAttribute("value");
+            document.querySelector("#machine-progress-task").setAttribute("value", 0);
+            document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
+            document.querySelector("#machine-progress-task").classList.add("is-primary");
+            document.querySelector("#machine-progress-subtask").classList.add("is-primary");            
             document.querySelector("#machine-task").innerHTML = "";
             document.querySelector("#machine-subtask").innerHTML = "";
-            document.querySelector("#machine-problems").innerHTML = "";
+            document.querySelector("#machine-problems").innerHTML = "None, yet :-)";
             document.querySelector("#machine-message-result").innerHTML = "";
             document.querySelector("#machine-message-status").style.display = "block";
+            machine_problems = [];
             return;
           }
           
           var parent = document.querySelector("#" + id);        
           var header = document.querySelector("#" + id + " > .message-header");
           
-          var title, message;
+          var title, message, cls;
           
           if (process_sts.result == "update_problem" ||
             process_sts.result == "update_status") {
               title = "Update in process";
-              
+              cls = "";
               if (process_sts.result == "update_status") {
                 var data, id_label, id_progress;
                 if (process_sts.output.process.subprocess != "") {
@@ -293,39 +296,57 @@
                   data = process_sts.output.process;
                   id_progress = "machine-progress-task";
                   id_label = "machine-task";
+                  document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
                 }
                 
                 document.querySelector("#" + id_label).innerHTML = data.current_op;
                 
                 if (data.total_steps != 0)
                    document.querySelector("#" + id_progress).setAttribute(
-                    "value", 100 * data.step / (data.total_steps + 1));
+                    "value", 100 * (data.step - 1) / data.total_steps);
                 else
                    document.querySelector("#" + id_progress).removeAttribute("value");
+              } else {
+                machine_problems.unshift(process_sts.output);
+                txt = "";
+                for (el in machine_problems) {
+                  txt += "<li>" + el + "</li>";
+                }
+                txt = "<ul>" + txt + "</ul>";
+                document.querySelector("#machine-message-result").innerHTML = txt;
               }
           } else {
               var btn = document.querySelector("#machine-btn-connect");
               btn.removeAttribute("disabled");
-              btn.innerHTML = "Abort";
+              btn.innerHTML = "Start update";
               
               if (process_sts.result == "ok") {
                   title = "Update completed successfully";
+                  cls = "is-success";
+                  document.querySelector("#machine-message-status").style.display = "none";
+                  document.querySelector("#machine-progress-task").setAttribute("value", 100);
+                  document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
+                  if (machine_problems.length == 0)
+                    document.querySelector("#machine-problems").innerHTML = "";
                   set_busy(false);
               } else {
                   title = "Update failed";
+                  document.querySelector("#machine-progress-task").classList.remove("is-primary");
+                  document.querySelector("#machine-progress-subtask").classList.remove("is-primary");
+                  cls = "is-danger";
                   set_busy(false);
               }
               
               document.querySelector("#machine-message-result").innerHTML = process_sts.output;
-              //document.querySelector("#machine-message-status").style.display = "none";
+              
           }
-          
-          message = process_sts["output"];
-          
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          if (cls != "") parent.classList.add(cls);
+
           header.innerHTML = title;
       }
 
-      
       function show_window(title, message) {
         var parent = document.querySelector("#window");      
         var title_el = document.querySelector("#window .modal-card-title");
@@ -484,7 +505,7 @@
       </div>
       
       <div class="buttons" >
-        <button class="button is-fullwidth" id="machine-btn-connect" onclick="machine_upgrade();">Start upgrade</button>
+        <button class="button is-fullwidth" id="machine-btn-connect" onclick="machine_upgrade();">Start update</button>
       </div>
       
       <article class="message" id="machine-message-operation" style="display:none;">
@@ -492,13 +513,13 @@
           Operation result
         </div>
         <div class="message-body">
-          <div id="machine-message-result"></div>
+          <div id="machine-message-result" class="block"></div>
           <div id="machine-message-status">
              <b>Task: </b><span id="machine-task">-</span>
              <progress id="machine-progress-task" class="progress is-large is-primary" max="100" style="display:block;"></progress>
              <b>Sub-task: </b><span id="machine-subtask">-</span>
              <progress id="machine-progress-subtask" class="progress is-middle is-primary" max="100" style="display:block;"></progress>
-             <b>Problems:</b>
+             <b>Non-blocking problems:</b>
              <div class="block" style="max-height: 150px; overflow-y: auto;">
                 <div class="container" id="machine-problems">
                     None, yet! :-)

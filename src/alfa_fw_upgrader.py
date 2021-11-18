@@ -822,7 +822,8 @@ class AlfaPackageLoader:
         if current_op is not None:
             self.sts[key]["total_steps"] = total_steps
 
-        self.process_callback(status=self.sts, problem=None)
+        if self.process_callback(status=self.sts, problem=None):
+            raise KeyboardInterrupt
 
     def process(self):
         current_step = 1
@@ -849,8 +850,8 @@ class AlfaPackageLoader:
         conn_args["serialMode"] = False
         conn_args["pollingMode"] = False
 
+        self.update_status("main", "programming master", 3, 4)
         try:
-            self.update_status("main", "programming master", 3, 4)
             afl = None
             afl = AlfaFirmwareLoader(**conn_args)
             afl.erase()

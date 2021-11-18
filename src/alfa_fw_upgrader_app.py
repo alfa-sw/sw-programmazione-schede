@@ -7,6 +7,7 @@ import traceback
 import logging
 import os
 import json
+import threading
 
 import yaml
 
@@ -191,6 +192,9 @@ class GUIApplication:
         path = os.path.join(HERE, "../", "templates", "gui-frontend")
         eel.init(path, allowed_extensions=['.js', '.html'])
 
+        self.worker = None
+        self.stop_request = False
+
         @eel.expose  # Expose this function to Javascript
         def say_hello_py():
             return __version__
@@ -228,7 +232,78 @@ class GUIApplication:
         def process_manual(setup_dict):
             self.process_manual(setup_dict)
 
+        @eel.expose
+        def process_machine(setup_dict):
+            if setup_dict['action'] != "start":
+                logging.info("Stop request")
+                self.stop_request = True
+                return
+
+            incoming_data = setup_dict['filedata']
+            data = bytes([ord(char) for char in incoming_data])
+            if self.worker and self.worker.is_alive():
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": "system is busy"})
+                return
+
+            self.worker = threading.Thread(
+                target=self.process_machine, args=(data,))
+            self.worker.start()
+
+    def process_machine(self, filedata):
+        problems = []
+        self.stopped = False
+
+        def callback(status=None, problem=None):
+            if status is not None:
+                if status["process"]["subprocess"] != "":
+                    print(" Subtask {}/{}: {}".format(
+                        status["subprocess"]["step"],
+                        status["subprocess"]["total_steps"],
+                        status["subprocess"]["current_op"]))
+                else:
+                    print("Task {}/{}: {}".format(
+                        status["process"]["step"],
+                        status["process"]["total_steps"],
+                        status["process"]["current_op"]))
+
+                eel.update_process_js({
+                    "result": "update_status",
+                    "output": status
+                })
+
+            if problem is not None:
+                problems.append(problem)
+                print("WARNING: ", problem)
+                eel.update_process_js({
+                    "result": "update_problem",
+                    "output": problem
+                })
+
+            return self.stop_request
+
+        conn_args = {
+            "serialPort": self.settings["serial_port"]
+        }
+
+        apl = AlfaPackageLoader(filedata, conn_args, callback)
+
+        print("Starting to update...")
+        try:
+            apl.process()
+        except Exception as e:
+            eel.update_process_js({
+                "result": "fail",
+                "output": self._get_output("UPDATE_FAILED", str(e))})
+
+        print("Update finished")
+
     def run(self):
+        logging.basicConfig(
+            stream=sys.stdout, level="DEBUG",
+            format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                   "%(filename)s:%(lineno)d %(message)s")
         eel.start('index.html', size=(700, 500), mode=False, port=8080)
 
 

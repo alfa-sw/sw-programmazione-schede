@@ -48,14 +48,26 @@
           'manual',
           'machine'
         ];
-        
+       
         boxes.forEach(function(element) {
           document.getElementById('box-' + element).style.display = "none";
         });
         
         document.getElementById('box-' + box).style.display = "block";
+
+        elm = document.querySelectorAll(".navbar-menu button");        
+        elm.forEach(el => el.classList.remove("is-primary"));
+        document.querySelector("#link-to-box-" + box).classList.add("is-primary");
       }
-    
+
+      function set_navbar_enabled(enabled) {
+        elm = document.querySelectorAll(".navbar-menu button");
+        if (!enabled)
+          elm.forEach(el => el.setAttribute("disabled", true));
+        else
+          elm.forEach(el => el.removeAttribute("disabled"));        
+      }
+      
       async function load_settings() {
         settings = await eel.get_settings()();
         document.getElementById('setting-serial-port').value = settings.serial_port;
@@ -69,7 +81,7 @@
         console.log("save");
         settings.serial_port = document.getElementById('setting-serial-port').value;
         settings.strategy = document.getElementById('setting-strategy').value;
-        eel.save_settings(settings);         
+        eel.save_settings(settings);
       }
       
       function open_settings_box() {
@@ -143,9 +155,6 @@
         var btn = document.querySelector("#machine-btn-connect");
 
         if (action == 'start') {
-          btn.removeAttribute("disabled");
-          btn.innerHTML = "Abort";
-          machine_result(null);
           loadFile('machine-file-input', function (data) {
             if (data == null) {
               show_window("Error", "Select a file.");
@@ -153,6 +162,9 @@
               return;
             }
             machine_busy = true;
+            btn.removeAttribute("disabled");
+            btn.innerHTML = "Abort";
+            machine_result(null);            
             eel.process_machine({'action': 'start', 'filedata': data});
           });
         }
@@ -223,7 +235,7 @@
           id = "manual-message-operation";
           var parent = document.querySelector("#" + id);        
           var header = document.querySelector("#" + id + " > .message-header");
-          var body = document.querySelector("#" + id + " > .message-body");
+          var body = document.querySelector("#manual-message-content");
           parent.style.display = "block";
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
@@ -255,7 +267,7 @@
             var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
             children.forEach(el => el.setAttribute("disabled", true));
         }
-        
+        set_navbar_enabled(!manual_connected);        
       }
 
       function machine_result(process_sts = null) {
@@ -271,7 +283,7 @@
             document.querySelector("#machine-task").innerHTML = "";
             document.querySelector("#machine-subtask").innerHTML = "";
             document.querySelector("#machine-problems").innerHTML = "None";
-            document.querySelector("#machine-message-result").innerHTML = "";
+            document.querySelector("#machine-message-result").style.display = "none";
             document.querySelector("#machine-message-status").style.display = "block";
             machine_problems = [];
             return;
@@ -314,7 +326,8 @@
                   txt += "<li>" + el + "</li>";
                 }
                 txt = "<ul>" + txt + "</ul>";
-                document.querySelector("#machine-message-result").innerHTML = txt;
+                document.querySelector("#machine-message-result").style.display = "block";
+                document.querySelector("#machine-message-content").innerHTML = txt;
               }
           } else {
               var btn = document.querySelector("#machine-btn-connect");
@@ -338,8 +351,8 @@
                   machine_busy = false;
                   set_busy(false);
               }
-              
-              document.querySelector("#machine-message-result").innerHTML = process_sts.output;
+              document.querySelector("#machine-message-result").style.display = "block";              
+              document.querySelector("#machine-message-content").innerHTML = process_sts.output;
               
           }
           parent.classList.remove('is-success');
@@ -349,7 +362,7 @@
           header.innerHTML = title;
       }
 
-      function show_window(title, message) {
+      function show_window(title, message, button_label = null, button_fct = null) {
         var parent = document.querySelector("#window");      
         var title_el = document.querySelector("#window .modal-card-title");
         var body_el = document.querySelector("#window .modal-card-body");
@@ -357,19 +370,43 @@
         parent.classList.add('is-active');
         title_el.innerHTML = title;
         body_el.innerHTML = message;
+        var btn = document.querySelector("#window-btn");
+        btn.innerHTML = button_label == null ? "OK" : button_label;
+        btn.onclick = button_fct == null ? function() { close_window(); }
+                      : button_fct;
       }
-      
+
       function close_window(title, message) {
         var parent = document.querySelector("#window");
         parent.classList.remove('is-active');
       }
+      
+      async function show_log() {
+        var data = await eel.get_log()();      
+        var div = 
+        '<div class=block" style="max-height: 150px; overflow-y: auto;">' +
+        '<div class="container" id="machine-problems"><pre>' + 
+        ((data.length > 100000) ? "<i>Log too long to display</i>" : data) +
+        '</pre></div></div>';
+        var blob = new Blob([data], {type: "text/plain"});
+        var blobUrl = URL.createObjectURL(blob);
+        show_window("Debug log", div, "", function() {});
+        var a = document.createElement("a");
+        a.href = blobUrl;
+        a.setAttribute("download", "log.txt");
+        a.innerHTML = "Save to file";
+        var btn = document.querySelector("#window-btn");
+        btn.innerHTML = "";
+        btn.appendChild(a);
+        
+     }
     </script>
   </head>
   <body onload="html_init()" class="has-navbar-fixed-top">
-    <nav class="navbar is-fixed-top" role="navigation" aria-label="main navigation">
+    <nav class="navbar is-fixed-top is-light" role="navigation" aria-label="main navigation">
       <div class="navbar-brand">
         <a class="navbar-item" href="https://bulma.io">
-          <img src="https://bulma.io/images/bulma-logo.png" width="112" height="28">
+          <img src="Logo_ALFA_web.jpg" width="112" height="28">
         </a>
 
       </div>
@@ -378,14 +415,14 @@
         <div class="navbar-start">       
           <div class="navbar-item">
             <div class="buttons">
-              <button class="button" onclick="set_current_box('welcome')">
+              <button class="button" id="link-to-box-welcome" onclick="set_current_box('welcome')">
                 <strong>Welcome</strong>
               </button>
-              <button class="button" onclick="set_current_box('manual')">
-                <strong>Manual update</strong>
-              </button>
-              <button class="button" onclick="set_current_box('machine')">
+              <button class="button" id="link-to-box-machine" onclick="set_current_box('machine')">
                 <strong>Machine update</strong>
+              </button>
+              <button class="button" id="link-to-box-manual" onclick="set_current_box('manual')">
+                <strong>Manual mode</strong>
               </button>
             </div>
           </div>
@@ -394,16 +431,16 @@
         <div class="navbar-end">
           <div class="navbar-item">
             <div class="buttons">
-              <button class="button is-primary" onclick="open_settings_box()">
+              <button class="button" onclick="open_settings_box()">
                 <strong>Settings</strong>
               </button>
             </div>
           </div>
-          
+
           <div class="navbar-item" id="header-info">
             Initializing
           </div>
-          
+
         </div>
       </div>
     </nav>  
@@ -417,24 +454,30 @@
         <div class="tile is-parent is-vertical">
           <article class="tile is-child notification is-dark-grey">
             <p class="title">adjust settings</p>
-            <p class="subtitle">set the parameters to connect to main board.</p>
-            <p class="buttons"><button class="button">Go to settings</button></p>
+            <p class="subtitle">set the parameters to connect and programs boards</p>
+            <p class="buttons">
+              <button class="button" onclick="set_current_box('welcome')">Go to settings</button>
+            </p>
           </article>
         </div>
         <div class="tile is-parent">
-          <article class="tile is-child notification  is-dark-grey">
-            <p class="title">manual update</p>
-            <p class="subtitle">in this mode you can program a single board.</p>
-            <p class="buttons"><button class="button">Go to page</button></p>
-          </article>
-        </div>
-        <div class="tile is-parent">
-          <article class="tile is-child notification   is-dark-grey">
+          <article class="tile is-child notification is-dark-grey">
             <div class="content">
               <p class="title">machine update</p>
-              <p class="subtitle">in this mode you can update from a package.</p>
-              <p class="buttons"><button class="button">Go to page</button></p>
+              <p class="subtitle">perform a complete update from a package</p>
+              <p class="buttons">
+                <button class="button" onclick="set_current_box('machine')">Go to page</button>
+              </p>
             </div>
+          </article>
+        </div>  
+        <div class="tile is-parent">
+          <article class="tile is-child notification  is-dark-grey">
+            <p class="title">manual mode</p>
+            <p class="subtitle">connect and program a single board</p>
+            <p class="buttons">
+              <button class="button" onclick="set_current_box('manual')">Go to page</button>
+            </p>
           </article>
         </div>
       </div>      
@@ -453,15 +496,14 @@
       </div>
       <div class="field">
         <label class="label">Hex file</label>
-        <div class="control">
-          <input type="file" id="manual-file-input">
-          <button class="button" id="manual-btn-load" onclick="load_hex_file();">Load</button>
-        </div>
-        <article class="message is-success" id="manual-message-hex" style="display:none;">
+        <article class="message" id="manual-message-hex">
           <div class="message-body">
-            Test
+            Please select a file to perform program/verify operations.
           </div>
-        </article>
+        </article>        
+        <div class="control">
+          <input type="file" id="manual-file-input" onchange="load_hex_file()">
+        </div>
       </div>
       
       <div class="buttons" >
@@ -487,13 +529,14 @@
           </div>
         </div>
       </div>
-      <progress id="manual-progress" class="progress is-large is-primary" max="100" style="display:none;"></progress>      
+      <progress id="manual-progress" class="progress is-large is-primary" max="100" style="display:none;"></progress>
       <article class="message is-success" id="manual-message-operation" style="display:none;">
         <div class="message-header">
           Operation result
         </div>
         <div class="message-body">
-          Test
+          <div id="manual-message-content"></div>
+          <button class="button" onclick="show_log();">Show log</button>
         </div>
       </article>
     </div>
@@ -515,13 +558,16 @@
           Operation result
         </div>
         <div class="message-body">
-          <div id="machine-message-result" class="block"></div>
+          <div id="machine-message-result" class="block">
+            <div id="machine-message-content"></div>
+            <button class="button" onclick="show_log();">Show log</button>
+          </div>
           <div id="machine-message-status">
              <b>Task: </b><span id="machine-task">-</span>
              <progress id="machine-progress-task" class="progress is-large is-primary" max="100" style="display:block;"></progress>
              <b>Sub-task: </b><span id="machine-subtask">-</span>
              <progress id="machine-progress-subtask" class="progress is-middle is-primary" max="100" style="display:block;"></progress>
-             <b>Non-blocking problems:</b>
+             <b>Non-blocking issues:</b>
              <div class="block" style="max-height: 150px; overflow-y: auto;">
                 <div class="container" id="machine-problems">
                     None
@@ -536,12 +582,15 @@
       <div class="modal-background"></div>
       <div class="modal-card">
         <header class="modal-card-head">
-          <p class="modal-card-title">Error</p>
+          <p class="modal-card-title"></p>
           <button class="delete" aria-label="close" onclick="close_window()"></button>
         </header>
         <section class="modal-card-body">
         </section>
-      </div>    
+        <footer class="modal-card-foot">
+            <button id="window-btn" class="button"></button>
+        </footer>
+      </div>
    </div>
 
     <div class="modal" id="settings-box">

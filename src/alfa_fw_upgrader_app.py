@@ -5,6 +5,9 @@ import argparse
 import sys
 import traceback
 import logging
+
+from io import StringIO
+
 import os
 import json
 import threading
@@ -181,6 +184,11 @@ class GUIApplication:
         with open(fn, 'w+') as f:
             f.write(yaml.dump(self.settings))
 
+    def _set_logging_stream(self, reset_to_stderr=False):
+        self.log_stream = sys.stderr if reset_to_stderr else StringIO()
+        logging.debug("setting logging stream %s", self.log_stream)
+        self.logging_handler.setStream(self.log_stream)
+
     def __init__(self):
         self.hex_available = False
 
@@ -215,6 +223,7 @@ class GUIApplication:
 
         @eel.expose
         def process_hex(file_content):
+            self._set_logging_stream()
             logging.info("processing hex file")
             try:
                 self.program_data = HexUtils.load_hex_to_array(file_content)
@@ -230,10 +239,13 @@ class GUIApplication:
 
         @eel.expose
         def process_manual(setup_dict):
+            self._set_logging_stream()
             self.process_manual(setup_dict)
 
         @eel.expose
         def process_machine(setup_dict):
+            self._set_logging_stream()
+
             if setup_dict['action'] != "start":
                 logging.info("Stop request")
                 self.stop_request = True
@@ -251,7 +263,16 @@ class GUIApplication:
                 target=self.process_machine, args=(data,))
             self.worker.start()
 
+        @eel.expose
+        def get_log():
+            try:
+                log = str(self.log_stream.getvalue())
+                return log
+            except BaseException:
+                return "no log available for last command"
+
     def process_machine(self, filedata):
+        self._set_logging_stream()
         problems = []
         self.stop_request = False
 
@@ -306,10 +327,13 @@ class GUIApplication:
         logging.info("Update finished")
 
     def run(self):
+        self.logging_handler = logging.StreamHandler(sys.stderr)
         logging.basicConfig(
-            stream=sys.stdout, level="DEBUG",
+            level="DEBUG",
             format="[%(asctime)s]%(levelname)s %(funcName)s() "
                    "%(filename)s:%(lineno)d %(message)s")
+        logging.getLogger().addHandler(self.logging_handler)
+        self._set_logging_stream(reset_to_stderr=True)
 
         # to start without opening a new browser:
         #~ eel.start('index.html', size=(1024, 500), mode=False, port=8080)

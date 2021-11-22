@@ -11,7 +11,7 @@ from runpy import run_path
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-__version__ = run_path(os.path.join(here, 'src', 'version.py'))["__version__"]
+__version__ = run_path(os.path.join(here, 'src/alfa_fw_upgrader', 'version.py'))["__version__"]
 
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     __readme__ = f.read().strip()
@@ -37,9 +37,6 @@ def main():
         ],
         packages=find_packages(where='src'),
         package_dir={'': 'src'},
-        data_files=[
-            ('templates', list(glob.glob('templates/*'))),
-        ],
         include_package_data=True,
         scripts=[
             'bin/alfa_fw_upgrader',
@@ -49,7 +46,9 @@ def main():
             'pyusb',
             'rs485_master',
             'eel',
-            'PyYAML'
+            'PyYAML',
+            'AppDirs',
+            'importlib_resources ; python_version<"3.9"'
         ],
         
         

@@ -1,5 +1,8 @@
-from alfa_fw_upgrader import AlfaFirmwareLoader, AlfaPackageLoader, HexUtils
-from version import __version__
+from alfa_fw_upgrader.lib import AlfaFirmwareLoader, AlfaPackageLoader
+from alfa_fw_upgrader.hexutils import HexUtils
+from alfa_fw_upgrader.version import __version__
+
+from alfa_fw_upgrader.data import templates
 
 import argparse
 import sys
@@ -17,9 +20,14 @@ import yaml
 import eel
 from appdirs import AppDirs
 
+if sys.version_info >= (3, 9):
+    # we use importlib.resource version 3.9 API
+    import importlib.resources as importlib_resources
+else:
+    import importlib_resources
+    
 HERE = os.path.dirname(os.path.abspath(__file__))
 USERDIR = AppDirs("alfa_fw_upgrader", "Acme").user_data_dir
-
 
 class GUIApplication:
     hex_available = None
@@ -196,10 +204,9 @@ class GUIApplication:
               "interface. Starting GUI **")
 
         self.get_settings()
-
-        path = os.path.join(HERE, "../", "templates", "gui-frontend")
-        eel.init(path, allowed_extensions=['.js', '.html'])
-
+        eel.init(importlib_resources.files(templates),
+          allowed_extensions=['.js', '.html'])
+        
         self.worker = None
         self.stop_request = False
 
@@ -336,8 +343,8 @@ class GUIApplication:
         self._set_logging_stream(reset_to_stderr=True)
 
         # to start without opening a new browser:
-        #~ eel.start('index.html', size=(1024, 500), mode=False, port=8080)
-        eel.start('index.html', size=(1024, 500))
+        #~ eel.start('index.html', mode=False, port=8080)
+        eel.start('index.html')
 
 
 class Application:

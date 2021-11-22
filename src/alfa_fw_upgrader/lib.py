@@ -131,7 +131,7 @@ import zipfile
 from io import BytesIO
 import yaml
 
-from hexutils import HexUtils
+from alfa_fw_upgrader.hexutils import HexUtils
 from typing import NoReturn
 
 from mab_serial_lib import SerialDriver, Protocol

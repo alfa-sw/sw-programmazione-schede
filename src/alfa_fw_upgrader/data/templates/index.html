@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>alfa_fw_updater</title>
+    <link rel="stylesheet" href="/bulma.min.css">
+    <script type="text/javascript" src="/eel.js"></script>
+    <script type="text/javascript">
+      var settings;
+      var current_box;
+      var busy = false;
+      var current_process = null;
+      
+      // manual mode variables
+      var manual_hex_ready = false;
+      var manual_connected = false;
+      
+      // machine upgrade mode variables
+      var machine_busy = false;
+      var machine_problems = [];
+
+      async function html_init() {
+        window.resizeTo(1100, 600);
+        set_current_box("welcome");
+        load_settings();
+        
+        document.getElementById('header-info')
+         .innerHTML = "version " + await eel.say_hello_py()();
+        
+        var el = document.getElementById('manual-device-id');
+        for (var i = 1; i<=254; i++){
+          var opt = document.createElement('option');
+          opt.value = i;
+          opt.innerHTML = i.toString() + " (0x" + i.toString(16) + ")";
+          el.appendChild(opt);
+        }
+        
+        manual_result();
+      }
+    
+      function set_current_box(box) {
+        var boxes = [
+          'welcome',
+          'manual',
+          'machine'
+        ];
+       
+        boxes.forEach(function(element) {
+          document.getElementById('box-' + element).style.display = "none";
+        });
+        
+        document.getElementById('box-' + box).style.display = "block";
+
+        elm = document.querySelectorAll(".navbar-menu button");        
+        elm.forEach(el => el.classList.remove("is-primary"));
+        document.querySelector("#link-to-box-" + box).classList.add("is-primary");
+      }
+
+      function set_navbar_enabled(enabled) {
+        elm = document.querySelectorAll(".navbar-menu button");
+        if (!enabled)
+          elm.forEach(el => el.setAttribute("disabled", true));
+        else
+          elm.forEach(el => el.removeAttribute("disabled"));        
+      }
+      
+      async function load_settings() {
+        settings = await eel.get_settings()();
+        document.getElementById('setting-serial-port').value = settings.serial_port;
+        document.getElementById('setting-strategy').value = settings.strategy;         
+        
+        if ("_default" in settings && settings["_default"])
+          open_settings_box();
+      }
+
+      function save_settings() {
+        console.log("save");
+        settings.serial_port = document.getElementById('setting-serial-port').value;
+        settings.strategy = document.getElementById('setting-strategy').value;
+        eel.save_settings(settings);
+      }
+      
+      function open_settings_box() {
+        document.getElementById('settings-box').classList.add('is-active');
+      }
+      
+      function close_settings_box() {
+        document.getElementById('settings-box').classList.remove('is-active');      
+      }
+      
+      function set_busy(is_busy, process_name = null) {
+        busy = is_busy;
+               
+        var buttons = Array.from(document.getElementsByClassName("button"));
+        
+        if (is_busy) {
+          current_process = process_name;
+          buttons.forEach(el => el.setAttribute("disabled", true));
+        } else {
+          current_process = null;
+          buttons.forEach(el => el.removeAttribute("disabled"));
+        }
+      }
+      
+      function loadFile(dom_id, callback) {
+        var inputField = document.getElementById(dom_id);
+        var selectedFiles = inputField.files;
+        if (selectedFiles.length == 0)
+            return callback(null);
+            
+        for(var i=0; i<selectedFiles.length; i++) {
+            var file = selectedFiles[i];
+            var reader = new FileReader();
+            reader.onload = function(loadedEvent) {
+                // result contains loaded file.
+                var file_content = loadedEvent.target.result;
+                callback(file_content);
+            }
+            reader.readAsBinaryString(file);
+            break; // consider only the 1st file
+        }
+      }
+      
+      function load_hex_file() {
+        set_busy(true, "load_hex");
+        loadFile('manual-file-input', function(data) {
+          if (data == null) {
+            manual_result({"result":"fail", "output": "Select a file."});
+            set_busy(false);
+            return;
+          }
+          eel.process_hex(data);
+        });
+      }
+
+      function connect_disconnect() {
+        var action = !manual_connected ? 'connect' : 'disconnect';
+        set_busy(true, action);
+        document.getElementById('manual-progress').style.display = "block";
+        document.getElementById("manual-message-operation").style.display = "none";
+        
+        eel.process_manual({
+          'action': action,
+          'device_id': document.getElementById('manual-device-id').value
+          });
+      }
+
+      function machine_upgrade() {
+        var action = !machine_busy ? 'start' : 'stop';
+        set_busy(true, "update");
+        var btn = document.querySelector("#machine-btn-connect");
+
+        if (action == 'start') {
+          loadFile('machine-file-input', function (data) {
+            if (data == null) {
+              show_window("Error", "Select a file.");
+              set_busy(false);
+              return;
+            }
+            machine_busy = true;
+            btn.removeAttribute("disabled");
+            btn.innerHTML = "Abort";
+            machine_result(null);            
+            eel.process_machine({'action': 'start', 'filedata': data});
+          });
+        }
+        else {
+          btn.setAttribute("disabled", true);
+          document.querySelector("#machine-message-operation > .message-header").innerHTML = "Aborting";
+          eel.process_machine({'action': 'stop'});
+        }
+        
+      }
+
+
+      function manual_operation(operation) {
+        set_busy(true, operation);
+        document.getElementById('manual-progress').style.display = "block";
+        document.getElementById("manual-message-operation").style.display = "none";
+        
+        eel.process_manual({
+          'action': operation,
+          });
+      }
+
+      eel.expose(update_process_js); // Expose this function to Python
+      function update_process_js(process_sts) {
+        console.log(process_sts);
+        if (current_process != "update")
+          manual_result(process_sts);
+        else
+          machine_result(process_sts);
+      }
+      
+      function manual_result(process_sts = null) {
+        if (current_process == "load_hex") {
+          var text, cls;
+          if (process_sts.result == "ok") {
+            text = "File loaded correctly.";
+            cls = "is-success";
+          } else {
+            text = "Failed to load file.<br> " + process_sts.output;
+            cls = "is-danger";
+          }        
+          id = "manual-message-hex";
+          var parent = document.querySelector("#" + id);        
+          var child = document.querySelector("#" + id + " > .message-body");
+          parent.style.display = "block";
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          parent.classList.add(cls);
+          child.innerHTML = text;
+          manual_hex_ready = true;
+
+        } else if (current_process != null) {
+          var text, title, cls;
+          if (process_sts.result == "ok") {
+            text = "Operation completed successfully<br>" +
+                   (process_sts.output != "" ? "<pre>" + process_sts.output + "</pre>" : "");
+            title = "Success"
+            cls = "is-success";
+          } else {
+            title = "Failure";          
+            text = process_sts.output;
+            cls = "is-danger";
+          }
+
+          if (current_process == "jump" || current_process == "reset")
+            connect_disconnect();
+          
+          id = "manual-message-operation";
+          var parent = document.querySelector("#" + id);        
+          var header = document.querySelector("#" + id + " > .message-header");
+          var body = document.querySelector("#manual-message-content");
+          parent.style.display = "block";
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          if (cls != "") parent.classList.add(cls);
+          body.innerHTML = text;
+          header.innerHTML = title;
+          
+          if (current_process == "connect")
+            manual_connected = (process_sts.result == "ok");
+          else if (current_process == "disconnect") 
+            manual_connected = (process_sts.result != "ok");
+          
+          document.getElementById('manual-progress').style.display = "none";
+        }
+
+        set_busy(false);
+        
+        var children = document.querySelectorAll("#manual-operation-buttons button");
+
+        if (!manual_connected) {
+          children.forEach(el => el.setAttribute("disabled", true));
+          document.getElementById('manual-btn-connect').innerHTML = "Connect to device";
+        } else {
+          children.forEach(el => el.removeAttribute("disabled"))
+          document.getElementById('manual-btn-connect').innerHTML = "Disconnect";
+        }
+
+        if (!manual_hex_ready) {
+            var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
+            children.forEach(el => el.setAttribute("disabled", true));
+        }
+        set_navbar_enabled(!manual_connected);        
+      }
+
+      function machine_result(process_sts = null) {
+          console.log("Machine result");
+          id = "machine-message-operation";
+          
+          if (process_sts == null) {
+            document.querySelector("#machine-message-operation").style.display = "block";
+            document.querySelector("#machine-progress-task").setAttribute("value", 0);
+            document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
+            document.querySelector("#machine-progress-task").classList.add("is-primary");
+            document.querySelector("#machine-progress-subtask").classList.add("is-primary");            
+            document.querySelector("#machine-task").innerHTML = "";
+            document.querySelector("#machine-subtask").innerHTML = "";
+            document.querySelector("#machine-problems").innerHTML = "None";
+            document.querySelector("#machine-message-result").style.display = "none";
+            document.querySelector("#machine-message-status").style.display = "block";
+            machine_problems = [];
+            return;
+          }
+          
+          var parent = document.querySelector("#" + id);        
+          var header = document.querySelector("#" + id + " > .message-header");
+          
+          var title, message, cls;
+          
+          if (process_sts.result == "update_problem" ||
+            process_sts.result == "update_status") {
+              title = "Update in process";
+              cls = "";
+              if (process_sts.result == "update_status") {
+                var data, id_label, id_progress;
+                if (process_sts.output.process.subprocess != "") {
+                  data = process_sts.output.subprocess;
+                  id_progress = "machine-progress-subtask";
+                  id_label = "machine-subtask";
+                } else {
+                  data = process_sts.output.process;
+                  id_progress = "machine-progress-task";
+                  id_label = "machine-task";
+                  document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
+                  document.querySelector("#machine-subtask").innerHTML = "";
+                }
+                
+                document.querySelector("#" + id_label).innerHTML = data.current_op;
+                
+                if (data.total_steps != 0)
+                   document.querySelector("#" + id_progress).setAttribute(
+                    "value", 100 * (data.step - 1) / data.total_steps);
+                else
+                   document.querySelector("#" + id_progress).removeAttribute("value");
+              } else {
+                machine_problems.unshift(process_sts.output);
+                txt = "";
+                for (el in machine_problems) {
+                  txt += "<li>" + el + "</li>";
+                }
+                txt = "<ul>" + txt + "</ul>";
+                document.querySelector("#machine-message-result").style.display = "block";
+                document.querySelector("#machine-message-content").innerHTML = txt;
+              }
+          } else {
+              var btn = document.querySelector("#machine-btn-connect");
+              btn.removeAttribute("disabled");
+              btn.innerHTML = "Start update";
+              
+              if (process_sts.result == "ok") {
+                  title = "Update completed successfully";
+                  cls = "is-success";
+                  document.querySelector("#machine-progress-task").setAttribute("value", 100);
+                  document.querySelector("#machine-progress-subtask").setAttribute("value", 100);
+                  if (machine_problems.length == 0)
+                    document.querySelector("#machine-problems").innerHTML = "";
+                  machine_busy = false;
+                  set_busy(false);
+              } else {
+                  title = "Update failed";
+                  document.querySelector("#machine-progress-task").classList.remove("is-primary");
+                  document.querySelector("#machine-progress-subtask").classList.remove("is-primary");
+                  cls = "is-danger";
+                  machine_busy = false;
+                  set_busy(false);
+              }
+              document.querySelector("#machine-message-result").style.display = "block";              
+              document.querySelector("#machine-message-content").innerHTML = process_sts.output;
+              
+          }
+          parent.classList.remove('is-success');
+          parent.classList.remove('is-danger');
+          if (cls != "") parent.classList.add(cls);
+
+          header.innerHTML = title;
+      }
+
+      function show_window(title, message, button_label = null, button_fct = null) {
+        var parent = document.querySelector("#window");      
+        var title_el = document.querySelector("#window .modal-card-title");
+        var body_el = document.querySelector("#window .modal-card-body");
+        
+        parent.classList.add('is-active');
+        title_el.innerHTML = title;
+        body_el.innerHTML = message;
+        var btn = document.querySelector("#window-btn");
+        btn.innerHTML = button_label == null ? "OK" : button_label;
+        btn.onclick = button_fct == null ? function() { close_window(); }
+                      : button_fct;
+      }
+
+      function close_window(title, message) {
+        var parent = document.querySelector("#window");
+        parent.classList.remove('is-active');
+      }
+      
+      async function show_log() {
+        var data = await eel.get_log()();      
+        var div = 
+        '<div class=block" style="max-height: 150px; overflow-y: auto;">' +
+        '<div class="container" id="machine-problems"><pre>' + 
+        ((data.length > 100000) ? "<i>Log too long to display</i>" : data) +
+        '</pre></div></div>';
+        var blob = new Blob([data], {type: "text/plain"});
+        var blobUrl = URL.createObjectURL(blob);
+        show_window("Debug log", div, "", function() {});
+        var a = document.createElement("a");
+        a.href = blobUrl;
+        a.setAttribute("download", "log.txt");
+        a.innerHTML = "Save to file";
+        var btn = document.querySelector("#window-btn");
+        btn.innerHTML = "";
+        btn.appendChild(a);
+        
+     }
+    </script>
+  </head>
+  <body onload="html_init()" class="has-navbar-fixed-top">
+    <nav class="navbar is-fixed-top is-light" role="navigation" aria-label="main navigation">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="https://bulma.io">
+          <img src="Logo_ALFA_web.jpg" width="112" height="28">
+        </a>
+
+      </div>
+
+      <div id="navbarBasicExample" class="navbar-menu">
+        <div class="navbar-start">       
+          <div class="navbar-item">
+            <div class="buttons">
+              <button class="button" id="link-to-box-welcome" onclick="set_current_box('welcome')">
+                <strong>Welcome</strong>
+              </button>
+              <button class="button" id="link-to-box-machine" onclick="set_current_box('machine')">
+                <strong>Machine update</strong>
+              </button>
+              <button class="button" id="link-to-box-manual" onclick="set_current_box('manual')">
+                <strong>Manual mode</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <div class="buttons">
+              <button class="button" onclick="open_settings_box()">
+                <strong>Settings</strong>
+              </button>
+            </div>
+          </div>
+
+          <div class="navbar-item" id="header-info">
+            Initializing
+          </div>
+
+        </div>
+      </div>
+    </nav>  
+
+    <div class="box" id="box-welcome">
+      <div class="box">
+        <p class="title">Welcome to alfa_fw_upgrader!</p>
+        <p>This tool will guide you to upgrade one or more of our boards, or all of them.</p>
+      </div>
+      <div class="tile is-ancestor">
+        <div class="tile is-parent is-vertical">
+          <article class="tile is-child notification is-dark-grey">
+            <p class="title">adjust settings</p>
+            <p class="subtitle">set the parameters to connect and programs boards</p>
+            <p class="buttons">
+              <button class="button" onclick="open_settings_box();">Go to settings</button>
+            </p>
+          </article>
+        </div>
+        <div class="tile is-parent">
+          <article class="tile is-child notification is-dark-grey">
+            <div class="content">
+              <p class="title">machine update</p>
+              <p class="subtitle">perform a complete update from a package</p>
+              <p class="buttons">
+                <button class="button" onclick="set_current_box('machine')">Go to page</button>
+              </p>
+            </div>
+          </article>
+        </div>  
+        <div class="tile is-parent">
+          <article class="tile is-child notification  is-dark-grey">
+            <p class="title">manual mode</p>
+            <p class="subtitle">connect and program a single board</p>
+            <p class="buttons">
+              <button class="button" onclick="set_current_box('manual')">Go to page</button>
+            </p>
+          </article>
+        </div>
+      </div>      
+    </div>
+
+    <div class="box" id="box-manual">
+      <div class="field">
+        <label class="label">Device address</label>
+        <div class="control">
+          <div class="select">
+            <select id="manual-device-id">
+              <option value="255">255 (0xFF) - master</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Hex file</label>
+        <article class="message" id="manual-message-hex">
+          <div class="message-body">
+            Please select a file to perform program/verify operations.
+          </div>
+        </article>        
+        <div class="control">
+          <input type="file" id="manual-file-input" onchange="load_hex_file()">
+        </div>
+      </div>
+      
+      <div class="buttons" >
+        <button class="button is-fullwidth" id="manual-btn-connect" onclick="connect_disconnect();">Connect to device</button>
+        <div class="tile is-ancestor box" id="manual-operation-buttons">
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('info');">Get info</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program');">Program</button>        
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('verify');">Verify</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program_and_verify');">Program &amp; Verify</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('jump');">Jump to application</button>
+          </div>
+          <div class="tile">
+            <button class="button is-fullwidth"  onclick="manual_operation('reset');">Reset boards</button>
+          </div>
+        </div>
+      </div>
+      <progress id="manual-progress" class="progress is-large is-primary" max="100" style="display:none;"></progress>
+      <article class="message is-success" id="manual-message-operation" style="display:none;">
+        <div class="message-header">
+          Operation result
+        </div>
+        <div class="message-body">
+          <div id="manual-message-content"></div>
+          <button class="button" onclick="show_log();">Show log</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="box" id="box-machine">
+      <div class="field">
+        <label class="label">Package file</label>
+        <div class="control">
+          <input type="file" id="machine-file-input">
+        </div>
+      </div>
+      
+      <div class="buttons" >
+        <button class="button is-fullwidth" id="machine-btn-connect" onclick="machine_upgrade();">Start update</button>
+      </div>
+      
+      <article class="message" id="machine-message-operation" style="display:none;">
+        <div class="message-header">
+          Operation result
+        </div>
+        <div class="message-body">
+          <div id="machine-message-result" class="block">
+            <div id="machine-message-content"></div>
+            <button class="button" onclick="show_log();">Show log</button>
+          </div>
+          <div id="machine-message-status">
+             <b>Task: </b><span id="machine-task">-</span>
+             <progress id="machine-progress-task" class="progress is-large is-primary" max="100" style="display:block;"></progress>
+             <b>Sub-task: </b><span id="machine-subtask">-</span>
+             <progress id="machine-progress-subtask" class="progress is-middle is-primary" max="100" style="display:block;"></progress>
+             <b>Non-blocking issues:</b>
+             <div class="block" style="max-height: 150px; overflow-y: auto;">
+                <div class="container" id="machine-problems">
+                    None
+                </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+    
+    <div class="modal" id="window">
+      <div class="modal-background"></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title"></p>
+          <button class="delete" aria-label="close" onclick="close_window()"></button>
+        </header>
+        <section class="modal-card-body">
+        </section>
+        <footer class="modal-card-foot">
+            <button id="window-btn" class="button"></button>
+        </footer>
+      </div>
+   </div>
+
+    <div class="modal" id="settings-box">
+      <div class="modal-background"></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Settings</p>
+          <button class="delete" aria-label="close" onclick="close_settings_box()"></button>
+        </header>
+        <section class="modal-card-body">
+          <div class="field">
+            <label class="label">Serial port (e.g. /dev/ttyUSB0 on Linux, COM1 on Windows)</label>
+            <div class="control">
+              <input id="setting-serial-port" class="input" type="text" placeholder="Serial port">
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">Connection Modality</label>
+            <div class="control">
+              <div class="select">
+                <select id="setting-strategy">
+                  <option value="simple">Simple (legacy mode)</option>
+                  <option value="polling">Polling (first start connecting, then power on the board)</option>
+                  <option value="serial">Serial (go to update mode when application is running)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+        <footer class="modal-card-foot">
+          <button class="button is-success" onclick="save_settings(); close_settings_box();">Save changes</button>
+          <button class="button" onclick="close_settings_box();">Cancel</button>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>

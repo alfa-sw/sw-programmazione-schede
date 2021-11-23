@@ -1,0 +1,14 @@
+Notes
+
+N.1: OK
+N.2: OK 
+     Note: unable to read machine status per differenza di dimensioni
+N.3: OK
+N.4: OK
+     Note: resulting FW version is not correct: (1, (43, 43, 0))
+N.5: OK
+N.6: NOK
+     First time OK, the second time failed to erase and deadlock
+N.7: OK
+N.8: NOK
+     Failed to erase and deadlock

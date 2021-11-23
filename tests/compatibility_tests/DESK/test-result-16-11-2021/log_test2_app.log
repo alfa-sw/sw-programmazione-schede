@@ -1,0 +1,79 @@
+flashing SchedaMAB/Applicativo/desk_3.2.2-boot.hex, device=255
++ alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 255 -f SchedaMAB/Applicativo/desk_3.2.2-boot.hex info program verify jump
+Boot version: 1.0.2
+Memory start address: 11264 / length: 162816
+Boot versions: N/A
+FW versions: N/A
+FW versions JSON: N/A
+Slaves enabled addresses: N/A
+flashing SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex, device=1
++ alfa_fw_upgrader -p /dev/ttyUSB1 -cr 5 -s serial -d 1 -f SchedaSCCB/Applicativi/pump-r1-siboot-dipswitch_4_2_0.hex info program verify jump
+--- Logging error ---
+Traceback (most recent call last):
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader.py", line 514, in __init__
+    self.usb = USBManager(**usb_args)
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader.py", line 177, in __init__
+    self._usb_init()
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader.py", line 190, in _usb_init
+    raise RuntimeError("USB device not found")
+RuntimeError: USB device not found
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/phil/work/sw/rs485-master/src/mab_serial_lib/driver.py", line 249, in read
+    self.fire(self.EventLabel.FRAME_RECV, buff)
+  File "/home/phil/work/sw/rs485-master/src/mab_serial_lib/observable.py", line 58, in fire
+    fn(e)
+  File "/home/phil/work/sw/rs485-master/src/mab_serial_lib/lowlevel.py", line 426, in _observe_driver
+    answer = self._deserialize_answ(packet)
+  File "/home/phil/work/sw/rs485-master/src/mab_serial_lib/lowlevel.py", line 480, in _deserialize_answ
+    out_values = list(struct.unpack(fmt, packet.payload_bytes))
+struct.error: unpack requires a buffer of 87 bytes
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 1085, in emit
+    msg = self.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 929, in format
+    return fmt.format(record)
+  File "/usr/lib/python3.8/logging/__init__.py", line 668, in format
+    record.message = record.getMessage()
+  File "/usr/lib/python3.8/logging/__init__.py", line 373, in getMessage
+    msg = msg % self.args
+TypeError: not all arguments converted during string formatting
+Call stack:
+  File "/home/phil/work/sw/rs485-master-env/bin/alfa_fw_upgrader", line 7, in <module>
+    exec(compile(f.read(), __file__, 'exec'))
+  File "/home/phil/work/sw/sw-programmazione-schede/bin/alfa_fw_upgrader", line 5, in <module>
+    Application().main()
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader_app.py", line 498, in main
+    ufl = AlfaFirmwareLoader(
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader.py", line 524, in __init__
+    self.jump_to_boot(serialPort)
+  File "/home/phil/work/sw/sw-programmazione-schede/src/alfa_fw_upgrader.py", line 676, in jump_to_boot
+    loop.run_until_complete(operations())
+  File "/usr/lib/python3.8/asyncio/base_events.py", line 603, in run_until_complete
+    self.run_forever()
+  File "/usr/lib/python3.8/asyncio/base_events.py", line 570, in run_forever
+    self._run_once()
+  File "/usr/lib/python3.8/asyncio/base_events.py", line 1859, in _run_once
+    handle._run()
+  File "/usr/lib/python3.8/asyncio/events.py", line 81, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/phil/work/sw/rs485-master/src/mab_serial_lib/driver.py", line 256, in read
+    logging.error('reading loop exception: ', e)
+Message: 'reading loop exception: '
+Arguments: (error('unpack requires a buffer of 87 bytes'),)
+The following error occured during execution: Failed to initialize (failed to jump to boot using serial commands)
+Increment level of verbosity to get exception
+
+Hints:
+ - Check if the device is powered up and correctly connected
+ - Check if the device is in boot mode
+ - Check if the driver is working correctly. On windows, run Zadig and select WinUSB driver for this device and be sure to have library libusb-1.0.dll in c:\Windows\System32
+ - Check if the serial port is correctly plugged in and theserial port is correct, if using bootloader '2.0'
+
+Return value is 3
+failed to update

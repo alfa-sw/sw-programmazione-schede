@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from hexutils import HexUtils
-from alfa_fw_upgrader import USBFirmwareLoader
+from alfa_fw_upgrader.hexutils import HexUtils
+from alfa_fw_upgrader.lib import AlfaFirmwareLoader
 import unittest
 import logging
 import os
@@ -10,7 +10,7 @@ class TestFileDriver(unittest.TestCase):
     def test_file_driver(self):
         logging.basicConfig(level=logging.INFO)
 
-        ufl = USBFirmwareLoader()
+        ufl = AlfaFirmwareLoader()
         ufl.erase()
 
         here = os.path.dirname(os.path.abspath(__file__))

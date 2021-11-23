@@ -13,6 +13,7 @@ from io import StringIO
 import os
 import json
 import threading
+from pathlib import Path
 
 import yaml
 
@@ -36,7 +37,7 @@ if __package__ is None:
 
     
 HERE = os.path.dirname(os.path.abspath(__file__))
-USERDIR = AppDirs("alfa_fw_upgrader", "Acme").user_data_dir
+USERDIR = AppDirs("alfa_fw_upgrader", "alfa").user_data_dir
 
 class GUIApplication:
     hex_available = None
@@ -194,9 +195,7 @@ class GUIApplication:
 
     def save_settings(self):
         fn = os.path.join(USERDIR, 'settings.yaml')
-        if not os.path.exists(USERDIR):
-            logging.info("mkdir %s", USERDIR)
-            os.mkdir(USERDIR)
+        Path(USERDIR).mkdir(parents=True, exist_ok=True)
 
         with open(fn, 'w+') as f:
             f.write(yaml.dump(self.settings))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from hexutils import HexUtils
-from alfa_fw_upgrader import AlfaFirmwareLoader
+from alfa_fw_upgrader.hexutils import HexUtils
+from alfa_fw_upgrader.lib import AlfaFirmwareLoader
 import unittest
 import logging
 import os

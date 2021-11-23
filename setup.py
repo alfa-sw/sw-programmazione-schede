@@ -11,7 +11,8 @@ from runpy import run_path
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-__version__ = run_path(os.path.join(here, 'src/alfa_fw_upgrader', 'version.py'))["__version__"]
+with open(os.path.join(here, '__version__'), encoding='utf-8') as f:
+    __version__ = f.read().strip()
 
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     __readme__ = f.read().strip()
@@ -49,6 +50,7 @@ def main():
             'PyYAML',
             'AppDirs',
             'importlib_resources ; python_version<"3.9"'
+            'importlib_metadata ; python_version<"3.8"'
         ],
         
         

@@ -1,6 +1,5 @@
 from alfa_fw_upgrader.lib import AlfaFirmwareLoader, AlfaPackageLoader
 from alfa_fw_upgrader.hexutils import HexUtils
-from alfa_fw_upgrader.version import __version__
 
 from alfa_fw_upgrader.data import templates
 
@@ -25,6 +24,16 @@ if sys.version_info >= (3, 9):
     import importlib.resources as importlib_resources
 else:
     import importlib_resources
+
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
+
+if __package__ is None:
+    # workaround for pyinstaller setting __package__ to None
+    __package__ = "alfa_fw_upgrader"
+
     
 HERE = os.path.dirname(os.path.abspath(__file__))
 USERDIR = AppDirs("alfa_fw_upgrader", "Acme").user_data_dir
@@ -212,7 +221,7 @@ class GUIApplication:
 
         @eel.expose  # Expose this function to Javascript
         def say_hello_py():
-            return __version__
+            return importlib_metadata.version(__package__)
 
         @eel.expose  # Expose this function to Javascript
         def get_settings():

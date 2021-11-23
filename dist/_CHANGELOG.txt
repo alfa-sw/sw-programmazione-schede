@@ -1,0 +1,5 @@
+* 0.1.1
+  Release date: 2021-11-23
+  Serial lib: rs485_master 0.1.1
+  Notes: first release
+  

@@ -1,3 +1,11 @@
+* 0.1.2
+  Release date: 2021-11-26
+  Serial lib: rs485_master 0.1.2
+  Notes:
+   - fixed issue #20: changed distribution archives, added libusb-1.0.dll
+   - added handling of digest value (CRC16)
+   - removed linux binary
+
 * 0.1.1
   Release date: 2021-11-23
   Serial lib: rs485_master 0.1.1

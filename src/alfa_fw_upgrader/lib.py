@@ -125,11 +125,11 @@ import usb.core
 import usb.util
 import struct
 import logging
-
 import time
 import zipfile
 from io import BytesIO
 import yaml
+from crc import CrcCalculator, Crc16
 
 from alfa_fw_upgrader.hexutils import HexUtils
 from typing import NoReturn
@@ -278,11 +278,11 @@ class USBManager:
         # | <byte> |     <byte>     | <byte>  |    <uint32>     |<uint32>| <byte> |
         # |  [2]   |      [2]       |  [1]    |       ?         |   ?    | [0xFF] |
         # +--------+----------------+---------+-----------------+--------+--------+
-        # +--------------------------+-----------+-----------+-----------+-----------+
-        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |  BOOT STS |
-        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |  <byte>   |
-        # |        [0/1]             |     ?     |   ?       |   ?       |   ?       |
-        # +--------------------------+-----------+-----------+-----------+-----------+
+        # +--------------------------+-----------+-----------+-----------+-----------+-----------+
+        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |  BOOT STS |  DIGEST   |
+        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |  <byte>   |  <uint16> |
+        # |        [0/1]             |     ?     |   ?       |   ?       |   ?       |   ?       |
+        # +--------------------------+-----------+-----------+-----------+-----------+-----------+
 
         if altDeviceId is None:
             deviceId = self.deviceId
@@ -293,11 +293,11 @@ class USBManager:
         data = struct.pack(fmt, self.CMD_ID_QUERY,
                            bytes(self.PASSWORD_QUERY), deviceId)
         self._send_usb_message(data)
-        buff = self._read_usb_message(64, timeout=5000)[:18]
+        buff = self._read_usb_message(64, timeout=5000)[:20]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
             address1, lenght1, type2, proto_ver, \
-            ver_major, ver_minor, ver_patch, boot_status = \
-            struct.unpack("<BBBBLLBBBBBB", buff)
+            ver_major, ver_minor, ver_patch, boot_status, digest = \
+            struct.unpack("<BBBBLLBBBBBBH", buff)
 
         if proto_ver > 0:
             ver = (ver_major, ver_minor, ver_patch)
@@ -317,7 +317,7 @@ class USBManager:
         if boot_status > 0:
             logging.warning(f"Reported boot status is {boot_status}")
 
-        return (address1, lenght1, proto_ver, ver, boot_status)
+        return (address1, lenght1, proto_ver, ver, boot_status, digest)
 
     @repetible
     def ERASE(self) -> NoReturn:
@@ -364,15 +364,14 @@ class USBManager:
         self._send_usb_message(data)
 
     @repetible
-    def PROGRAM_COMPLETE(self) -> NoReturn:
+    def PROGRAM_COMPLETE(self, digest: int) -> NoReturn:
         """ Send the bootloader to signal that programming is complete.
+        :parameter digest: 16 bit word resulting from hashing the program
         No return."""
 
-        # Note that in some docs report some parameters but it is better
-        # to use it just as a signal of program complete to bootloader.
-        # No answer provided.
-
-        data = struct.pack("<B", self.CMD_ID_PROGRAM_COMPLETE)
+        trailing = [0xFF] * 61  # command requires trailing sequence of 0xFF
+        data = struct.pack("<BH61s", self.CMD_ID_PROGRAM_COMPLETE,
+                           digest, bytes(trailing))
         self._send_usb_message(data)
 
     def GET_DATA(self, address: int, length: int) -> bytes:
@@ -536,20 +535,51 @@ class AlfaFirmwareLoader:
 
             self.usb.QUERY(altDeviceId=0)
 
-        try:
-            address, length, proto_ver, boot_fw_version, _ = self.usb.QUERY()
+        self._update_from_query()
+        self.erased = False
 
+    def _update_from_query(self):
+        """ update object members from answer to QUERY """
+        try:
+            address, length, proto_ver, boot_fw_version, boot_status, digest = self.usb.QUERY()
         except BaseException:
             raise RuntimeError("failed to query device")
 
-        logging.info("Response to QUERY, address = {}, length = {}, "
-                     "proto_ver = {}, boot_ver = {}"
-                     .format(address, length, proto_ver, boot_fw_version))
+        logging.info(
+            "Response to QUERY, address = {}, length = {}, "
+            "proto_ver = {}, boot_ver = {} boot_status = {} digest = {}" .format(
+                address,
+                length,
+                proto_ver,
+                boot_fw_version,
+                boot_status,
+                digest))
 
         self.starting_address = address
         self.memory_length = length
         self.boot_fw_version = boot_fw_version
-        self.erased = False
+        self.proto_ver = proto_ver
+        self.boot_status = boot_status
+        self.digest = digest
+
+    def _program_data_process(self, program_data) -> tuple:
+        """ extract the segment of the program data corresponding to application memory
+        and perform CRC16 calculation """
+        try:
+            program_segment = program_data[self.starting_address *
+                                           2: self.starting_address * 2 + self.memory_length * 2]
+        except BaseException:
+            raise RuntimeError("dimension of program does not fit memory")
+
+        try:
+            data = program_segment
+            crc_calculator = CrcCalculator(Crc16.CCITT)
+            checksum = crc_calculator.calculate_checksum(data)
+            logging.info(f"Calculated checksum is {checksum}")
+        except BaseException as e:
+            raise RuntimeError("calculation of CRC failed")
+
+        return (program_segment, checksum)
 
     def jump_to_boot(self, serial_filename: str) -> NoReturn:
         """ use serial commands to make the application jump to bootloader /
@@ -620,9 +650,9 @@ class AlfaFirmwareLoader:
                     node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY, 5) is not None)
 
                 logging.debug(
-                    "waiting for status_level to reach values 0x06 or 0x04")
+                    "waiting for status_level to reach values 0x06 or 0x04 or 0x07")
                 assert(await node.wait_for_recv_status_parameters(
-                    {"status_level": lambda x: x == 0x06 or x == 0x04},
+                    {"status_level": lambda x: x == 0x07 or x == 0x06 or x == 0x04},
                     180))
 
                 ok = False
@@ -697,11 +727,7 @@ class AlfaFirmwareLoader:
         if not self.erased:
             logging.warning("erase procedure not performed")
 
-        try:
-            program_segment = program_data[self.starting_address * \
-                2: self.starting_address * 2 + self.memory_length * 2]
-        except BaseException:
-            raise RuntimeError("dimension of program does not fit memory")
+        (program_segment, digest) = self._program_data_process(program_data)
 
         cursor = 0
         while cursor < len(program_segment):
@@ -722,7 +748,16 @@ class AlfaFirmwareLoader:
                                        cursor, cursor + chunk_len))
 
         try:
-            self.usb.PROGRAM_COMPLETE()
+            self.usb.PROGRAM_COMPLETE(digest)
+            if self.proto_ver > 0:
+                self._update_from_query()
+                # old versions of bootloader does not manage digest and
+                # put 1 if app is present instead of digest value
+                # TODO remove self.digest != 1 when bootloader is more mature
+                if self.digest != 1 and self.digest != digest:
+                    raise RuntimeError(
+                        "digest not correctly saved by bootloader")
+
         except BaseException:
             raise RuntimeError("program failed during finalization")
 
@@ -733,11 +768,7 @@ class AlfaFirmwareLoader:
         :return: a boolean
         """
 
-        try:
-            program_segment = program_data[self.starting_address * \
-                2: self.starting_address * 2 + self.memory_length * 2]
-        except BaseException:
-            raise RuntimeError("dimension of program does not fit memory")
+        (program_segment, digest) = self._program_data_process(program_data)
 
         cursor = 0
         while cursor < len(program_segment):

@@ -50,7 +50,8 @@ def main():
             'PyYAML',
             'AppDirs',
             'importlib_resources ; python_version<"3.9"',
-            'importlib_metadata ; python_version<"3.8"'
+            'importlib_metadata ; python_version<"3.8"',
+            'crc'
         ],
         
         

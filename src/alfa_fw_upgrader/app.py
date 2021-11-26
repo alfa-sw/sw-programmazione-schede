@@ -35,9 +35,10 @@ if __package__ is None:
     # workaround for pyinstaller setting __package__ to None
     __package__ = "alfa_fw_upgrader"
 
-    
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 USERDIR = AppDirs("alfa_fw_upgrader", "alfa").user_data_dir
+
 
 class GUIApplication:
     hex_available = None
@@ -99,7 +100,9 @@ class GUIApplication:
                 "Boot version: {}\n"
                 "Boot versions: {}\n"
                 "FW versions: {}\n"
-                "Slaves enabled addresses: {}"
+                "Slaves enabled addresses: {}\n"
+                "Boot status: {}\n"
+                "Application digest: {}\n"
                 .format(self.ufl.starting_address,
                         self.ufl.memory_length,
                         self.ufl.boot_fw_version if self.ufl.boot_fw_version
@@ -109,8 +112,13 @@ class GUIApplication:
                         self.ufl.fw_versions if self.ufl.fw_versions
                         is not None else "N/A",
                         self.ufl.slaves_configuration if self.ufl.slaves_configuration
-                        is not None else "N/A")
+                        is not None else "N/A",
+                        self.ufl.boot_status if self.ufl.boot_status
+                        is not None else "N/A",
+                        self.ufl.digest if self.ufl.digest
+                        is not None else "N/A",)
             })
+
         elif action == 'program':
             try:
                 self.ufl.erase()
@@ -213,8 +221,8 @@ class GUIApplication:
 
         self.get_settings()
         eel.init(importlib_resources.files(templates),
-          allowed_extensions=['.js', '.html'])
-        
+                 allowed_extensions=['.js', '.html'])
+
         self.worker = None
         self.stop_request = False
 
@@ -662,6 +670,20 @@ To perform verify only, with debug info and reset,
                                     ufl.slaves_configuration))
                         else:
                             print("Slaves enabled addresses: N/A")
+
+                        if ufl.boot_status is not None:
+                            print(
+                                "Boot status: {}".format(
+                                    ufl.boot_status))
+                        else:
+                            print("Boot status: N/A")
+
+                        if ufl.digest is not None:
+                            print(
+                                "Application digest: {}".format(
+                                    "%04X" % ufl.digest))
+                        else:
+                            print("Application digest: N/A")
 
                     elif a == 'program':
                         try:

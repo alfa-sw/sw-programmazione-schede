@@ -134,7 +134,7 @@ from crc import CrcCalculator, Crc16
 from alfa_fw_upgrader.hexutils import HexUtils
 from typing import NoReturn
 
-from mab_serial_lib import SerialDriver, Protocol
+from alfa_serial_lib import SerialDriver, Protocol
 
 
 class USBManager:
@@ -653,7 +653,7 @@ class AlfaFirmwareLoader:
                     "waiting for status_level to reach values 0x06 or 0x04 or 0x07")
                 assert(await node.wait_for_recv_status_parameters(
                     {"status_level": lambda x: x == 0x07 or x == 0x06 or x == 0x04},
-                    180))
+                    300))
 
                 ok = False
                 for i in range(0, 3):
@@ -750,6 +750,7 @@ class AlfaFirmwareLoader:
         try:
             self.usb.PROGRAM_COMPLETE(digest)
             if self.proto_ver > 0:
+                time.sleep(1)
                 self._update_from_query()
                 # old versions of bootloader does not manage digest and
                 # put 1 if app is present instead of digest value

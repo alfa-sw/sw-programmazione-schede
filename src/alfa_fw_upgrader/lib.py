@@ -865,11 +865,11 @@ class AlfaPackageLoader:
 
     def process(self):
         current_step = 1
-        self.update_status("main", "loading package", 1, 4)
+        self.update_status("main", "loading package", 1, 5)
         self.load_package(self.package_data)
 
         current_step += 1
-        self.update_status("main", "initialize", 2, 4)
+        self.update_status("main", "initialize", 2, 5)
 
         initialize_ok = False
         try:
@@ -888,7 +888,7 @@ class AlfaPackageLoader:
         conn_args["serialMode"] = False
         conn_args["pollingMode"] = False
 
-        self.update_status("main", "programming master", 3, 4)
+        self.update_status("main", "programming master", 3, 5)
         try:
             afl = None
             afl = AlfaFirmwareLoader(**conn_args)
@@ -923,7 +923,7 @@ class AlfaPackageLoader:
         current_step = 1
         total_steps = len(program_steps)
 
-        self.update_status("main", "programming slaves", 4, 4)
+        self.update_status("main", "programming slaves", 4, 5)
         for address, step in program_steps.items():
             self.update_status("slaves", f"programming slave #{address}",
                                current_step, total_steps)
@@ -942,6 +942,18 @@ class AlfaPackageLoader:
                         "failed to program master and to initialize")
 
             current_step += 1
+
+        try:
+            self.update_status("main", "jumping to application", 5, 5)
+            afl = AlfaFirmwareLoader(**conn_args)
+            conn_args["deviceId"] = 255
+            afl.jump()
+            afl.disconnect()
+        except BaseException:
+            raise RuntimeError("failed to jump to application")
+        finally:
+            afl.disconnect()
+
 
     def board_init(self):
         conn_args = self.conn_args

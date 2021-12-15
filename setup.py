@@ -19,6 +19,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
 
 __app_name__ = 'alfa_fw_upgrader'
 
+
 def main():
     setup(
         name=__app_name__,
@@ -53,8 +54,8 @@ def main():
             'importlib_metadata ; python_version<"3.8"',
             'crc'
         ],
-        
-        
+
+
     )
 
 

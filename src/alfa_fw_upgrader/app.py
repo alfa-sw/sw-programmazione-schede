@@ -126,6 +126,8 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "ok",
                     "output": self._get_output("ERASE_FAILED")})
+                return
+
             try:
                 self.ufl.program(self.program_data)
                 eel.update_process_js({"result": "ok", "output": ""})
@@ -152,13 +154,16 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("ERASE_FAILED")})
+                return
+
             try:
                 self.ufl.program(self.program_data)
-                eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("PROGRAM_FAILED")})
+                return
+
             try:
                 if self.ufl.verify(self.program_data) is False:
                     eel.update_process_js({

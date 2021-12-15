@@ -432,6 +432,10 @@ To perform verify only, with debug info and reset,
             "descr": "Update process failed due to a fatal error ({})",
             "retcode": 8
         },
+        "PROGRAM_FAILED": {
+            "descr": "Failed to program ({})",
+            "retcode": 9
+        }
     }
 
     def _exit_error(self, error_key, format_arg=None):

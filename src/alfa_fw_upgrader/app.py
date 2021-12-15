@@ -119,62 +119,57 @@ class GUIApplication:
                         is not None else "N/A",)
             })
 
+        elif action == 'verify':
+            try:
+                if not self.ufl.verify(self.program_data):
+                    eel.update_process_js({
+                        "result": "fail",
+                        "output": self._get_output("VERIFY_DATA_MISMATCH")})
+                else:
+                    eel.update_process_js({"result": "ok", "output": ""})
+            except Exception as e:
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": self._get_output("VERIFY_FAILED", str(e))})
+
         elif action == 'program':
             try:
                 self.ufl.erase()
             except BaseException:
                 eel.update_process_js({
-                    "result": "ok",
+                    "result": "fail",
                     "output": self._get_output("ERASE_FAILED")})
                 return
 
             try:
                 self.ufl.program(self.program_data)
+            except BaseException:
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": self._get_output("PROGRAM_FAILED")})
+                return
+
+            try:
+                if not self.ufl.verify(self.program_data, check_digest=False):
+                    eel.update_process_js({
+                        "result": "fail",
+                        "output": self._get_output("VERIFY_DATA_MISMATCH")})
+                    return
+            except Exception as e:
+                eel.update_process_js({
+                    "result": "fail",
+                    "output": self._get_output("VERIFY_FAILED", str(e))})
+                return
+
+            try:
+                self.ufl.seal(self.program_data)
                 eel.update_process_js({"result": "ok", "output": ""})
             except BaseException:
                 eel.update_process_js({
                     "result": "fail",
-                    "output": self._get_output("PROGRAM_FAILED")})
-        elif action == 'verify':
-            try:
-                if self.ufl.verify(self.program_data) is False:
-                    eel.update_process_js({
-                        "result": "fail",
-                        "output": self._get_output("VERIFY_DATA_MISMATCH")})
-                else:
-                    eel.update_process_js({"result": "ok", "output": ""})
-            except Exception as e:
-                eel.update_process_js({
-                    "result": "fail",
-                    "output": self._get_output("VERIFY_FAILED", str(e))})
-        elif action == 'program_and_verify':
-            try:
-                self.ufl.erase()
-            except BaseException:
-                eel.update_process_js({
-                    "result": "fail",
-                    "output": self._get_output("ERASE_FAILED")})
+                    "output": self._get_output("DIGEST_FAILED")})
                 return
 
-            try:
-                self.ufl.program(self.program_data)
-            except BaseException:
-                eel.update_process_js({
-                    "result": "fail",
-                    "output": self._get_output("PROGRAM_FAILED")})
-                return
-
-            try:
-                if self.ufl.verify(self.program_data) is False:
-                    eel.update_process_js({
-                        "result": "fail",
-                        "output": self._get_output("VERIFY_DATA_MISMATCH")})
-                else:
-                    eel.update_process_js({"result": "ok", "output": ""})
-            except Exception as e:
-                eel.update_process_js({
-                    "result": "fail",
-                    "output": self._get_output("VERIFY_FAILED", str(e))})
         elif action == 'jump':
             try:
                 self.ufl.jump()
@@ -374,7 +369,7 @@ class Application:
     NAME = "alfa_fw_upgrader"
     EXAMPLE_TEXT = '''Actions:
 - update: program and verify boards according to given package file
-- program: program the application memory with given hex file
+- program: program and verify the application memory with given hex file
 - verify: verify the application memory against the given hex file
 - info: get memory parameters and boot version
 - reset: send command to reset slaves and the board
@@ -426,7 +421,7 @@ To perform verify only, with debug info and reset,
             "retcode": 5
         },
         "VERIFY_DATA_MISMATCH": {
-            "descr": "Verify failed due to data mismatch",
+            "descr": "Verify failed due to data or digest value mismatch",
             "retcode": 6
         },
         "COMMAND_FAILED": {
@@ -439,6 +434,10 @@ To perform verify only, with debug info and reset,
         },
         "PROGRAM_FAILED": {
             "descr": "Failed to program ({})",
+            "retcode": 9
+        },
+        "DIGEST_FAILED": {
+            "descr": "Failed to set digest value ({})",
             "retcode": 9
         }
     }
@@ -703,9 +702,20 @@ To perform verify only, with debug info and reset,
                             ufl.program(program_data)
                         except BaseException:
                             self._exit_error("PROGRAM_FAILED")
+                        try:
+                            if not ufl.verify(
+                                    program_data, check_digest=False):
+                                self._exit_error("VERIFY_DATA_MISMATCH")
+                        except BaseException:
+                            self._exit_error("VERIFY_FAILED")
+                        try:
+                            ufl.seal(program_data)
+                        except BaseException:
+                            self._exit_error("DIGEST_FAILED")
+
                     elif a == 'verify':
                         try:
-                            if ufl.verify(program_data) is False:
+                            if not ufl.verify(program_data):
                                 self._exit_error("VERIFY_DATA_MISMATCH")
                         except BaseException:
                             self._exit_error("VERIFY_FAILED")

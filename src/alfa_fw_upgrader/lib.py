@@ -489,6 +489,8 @@ class AlfaFirmwareLoader:
         self.boot_versions = None
         self.slaves_configuration = None
 
+        self._current_program_data = None
+
         usb_args = {
             "deviceId": deviceId,
             "cmdRetries": cmdRetries,
@@ -535,8 +537,10 @@ class AlfaFirmwareLoader:
 
             self.usb.QUERY(altDeviceId=0)
 
-        self._update_from_query()
+        self.starting_address = None
+        self.memory_length = None
         self.erased = False
+        self._update_from_query()
 
     def _update_from_query(self):
         """ update object members from answer to QUERY """
@@ -555,6 +559,9 @@ class AlfaFirmwareLoader:
                 boot_status,
                 digest))
 
+        assert(self.starting_address is None or self.starting_address == address)
+        assert(self.memory_length is None or self.memory_length == length)
+
         self.starting_address = address
         self.memory_length = length
         self.boot_fw_version = boot_fw_version
@@ -563,11 +570,16 @@ class AlfaFirmwareLoader:
         self.digest = digest
 
     def _program_data_process(self, program_data) -> tuple:
-        """ extract the segment of the program data corresponding to application memory
-        and perform CRC16 calculation """
+        """ extract the segment of the program data corresponding to
+        application memory and perform CRC16 calculation """
+
+        if self._current_program_data == program_data:
+            return (self._current_program_segment, self._current_checksum)
+
         try:
-            program_segment = program_data[self.starting_address *
-                                           2: self.starting_address * 2 + self.memory_length * 2]
+            program_segment = program_data[self.starting_address * 2:
+                                           self.starting_address * 2 +
+                                           self.memory_length * 2]
         except BaseException:
             raise RuntimeError("dimension of program does not fit memory")
 
@@ -579,6 +591,8 @@ class AlfaFirmwareLoader:
         except BaseException as e:
             raise RuntimeError("calculation of CRC failed")
 
+        self._current_program_segment = program_segment
+        self._current_checksum = checksum
         return (program_segment, checksum)
 
     def jump_to_boot(self, serial_filename: str) -> NoReturn:
@@ -747,25 +761,32 @@ class AlfaFirmwareLoader:
                                    "positions {} and {}".format(
                                        cursor, cursor + chunk_len))
 
+    def seal(self, program_data: list) -> NoReturn:
+        """ set the digest value. To call after programming and verifying the
+        application.
+
+        :argument program_data: the entire application as a vector of bytes
+        """
+
+        (program_segment, digest) = self._program_data_process(program_data)
+
         try:
             self.usb.PROGRAM_COMPLETE(digest)
             if self.proto_ver > 0:
                 time.sleep(1)
                 self._update_from_query()
-                # old versions of bootloader does not manage digest and
-                # put 1 if app is present instead of digest value
-                # TODO remove self.digest != 1 when bootloader is more mature
-                if self.digest != 1 and self.digest != digest:
+                if self.digest != digest:
                     raise RuntimeError(
                         "digest not correctly saved by bootloader")
 
         except BaseException:
             raise RuntimeError("program failed during finalization")
 
-    def verify(self, program_data: list) -> bool:
+    def verify(self, program_data: list, check_digest=True) -> bool:
         """ verify the application memory on device against the given one.
 
         :argument program_data: the entire application as a vector of bytes
+        :argument check_digest: flag to check digest value
         :return: a boolean
         """
 
@@ -793,6 +814,13 @@ class AlfaFirmwareLoader:
                 raise RuntimeError("verify failed between program "
                                    "positions {} and {}".format(
                                        cursor, cursor + chunk_len))
+
+        if check_digest and self.proto_ver > 0:
+            self._update_from_query()
+            if self.digest != digest:
+                raise RuntimeError(
+                    "digest not correctly saved by bootloader")
+
         return True
 
     def reset(self) -> NoReturn:
@@ -895,7 +923,9 @@ class AlfaPackageLoader:
             afl.erase()
             hexdata = self.programs_hex[master_node['filename']]
             afl.program(hexdata)
-            afl.verify(hexdata)
+            assert afl.verify(hexdata, check_digest=False)
+            afl.seal(hexdata)
+            afl.disconnect()
         except Exception as e:
             self.report_problem("failed to program master 1st attempt")
             if not initialize_ok:
@@ -930,9 +960,12 @@ class AlfaPackageLoader:
 
             conn_args["deviceId"] = address
             try:
+                program = self.programs_hex[step['filename']]
                 afl = AlfaFirmwareLoader(**conn_args)
                 afl.erase()
-                afl.program(self.programs_hex[step['filename']])
+                afl.program(program)
+                assert afl.verify(program, check_digest=False)
+                afl.seal(program)
                 afl.disconnect()
             except BaseException:
                 self.report_problem(
@@ -953,7 +986,6 @@ class AlfaPackageLoader:
             raise RuntimeError("failed to jump to application")
         finally:
             afl.disconnect()
-
 
     def board_init(self):
         conn_args = self.conn_args

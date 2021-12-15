@@ -253,10 +253,12 @@
         var children = document.querySelectorAll("#manual-operation-buttons button");
 
         if (!manual_connected) {
+          document.querySelector("#manual-device-id").removeAttribute("disabled");
           children.forEach(el => el.setAttribute("disabled", true));
           document.getElementById('manual-btn-connect').innerHTML = "Connect to device";
         } else {
-          children.forEach(el => el.removeAttribute("disabled"))
+          document.querySelector("#manual-device-id").setAttribute("disabled", true);
+          children.forEach(el => el.removeAttribute("disabled"));
           document.getElementById('manual-btn-connect').innerHTML = "Disconnect";
         }
 

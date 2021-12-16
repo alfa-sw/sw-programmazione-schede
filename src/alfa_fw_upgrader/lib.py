@@ -92,7 +92,7 @@ talks to the application using serial port to jump to boot.
    0x06 (ALARM) or 0x04 (STANDBY) with a timeout of 180 secs.
    If the timeout happens, finish FAIL, otherwise:
 3. send the command ENTER_DIAGNOSTIC and wait for status_level to
-   have the value 0x07
+   have the value 0x07. Repeat at least 3 times in case of timeout.
 4. monitor for 5 seconds the status_level to make sure it holds
    the value 0x07 - there is the possibility it changes to 0x06 and
    in this case go to 3 for max 3 times. If more, finish FAIL; otherwise,
@@ -673,10 +673,15 @@ class AlfaFirmwareLoader:
                 for i in range(0, 3):
                     logging.debug(
                         "command the node to enter diagnostic status")
-                    assert (await node.send_request_and_watch(
-                        "ENTER_DIAGNOSTIC",
-                        status_params={"status_level": 0x07},
-                        timeout_status_sec=25))[0] == node.RequestWatchResult.SUCCESS
+                    j = 0
+                    result = None
+                    while j < 5 and result != node.RequestWatchResult.SUCCESS:
+                        result = (await node.send_request_and_watch(
+                            "ENTER_DIAGNOSTIC",
+                            status_params={"status_level": 0x07},
+                            timeout_status_sec=10))[0]
+                        j = j + 1
+                    assert result == node.RequestWatchResult.SUCCESS
                     again_to_reset_sts = await node.wait_for_recv_status_parameters(
                         {"status_level": lambda x: x != 0x07}, 5)
                     if not again_to_reset_sts:

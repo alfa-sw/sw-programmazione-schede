@@ -221,7 +221,7 @@ class GUIApplication:
 
         self.get_settings()
         eel.init(importlib_resources.files(templates),
-                 allowed_extensions=['.js', '.html'])
+                 allowed_extensions=['.js', '.html', '.ico'])
 
         self.worker = None
         self.stop_request = False

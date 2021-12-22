@@ -1,3 +1,11 @@
+* 0.1.5
+  Release date: 2021-12-22
+  Serial lib: rs485_master 0.1.4
+  Notes:
+   - fixed issue reporting during machine update, removed welcome page
+   - fixed #24, repetition of command ENTER DIAGNOSTIC in case of timeout
+   - added expert mode
+
 * 0.1.4
   Release date: 2021-12-15
   Serial lib: rs485_master 0.1.3

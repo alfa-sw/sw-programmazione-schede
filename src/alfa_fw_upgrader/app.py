@@ -46,6 +46,7 @@ class GUIApplication:
     default_settings = {
         "serial_port": "/dev/ttyUSB0",
         "strategy": "simple",
+        "expert": False
     }
 
     def _get_output(self, error_key, format_arg=None):
@@ -97,7 +98,7 @@ class GUIApplication:
             eel.update_process_js({
                 "result": "ok",
                 "output": "Memory start address: {} / length: {}\n"
-                "Boot version: {}\n"
+                "Boot version: {} (proto={})\n"
                 "Boot versions: {}\n"
                 "FW versions: {}\n"
                 "Slaves enabled addresses: {}\n"
@@ -106,6 +107,8 @@ class GUIApplication:
                 .format(self.ufl.starting_address,
                         self.ufl.memory_length,
                         self.ufl.boot_fw_version if self.ufl.boot_fw_version
+                        is not None else "N/A",
+                        self.ufl.proto_ver if self.ufl.proto_ver
                         is not None else "N/A",
                         self.ufl.boot_versions if self.ufl.boot_versions
                         is not None else "N/A",
@@ -648,9 +651,9 @@ To perform verify only, with debug info and reset,
                 for a in actions:
                     if a == 'info':
                         if ufl.boot_fw_version is not None:
-                            print("Boot version: {}.{}.{}".format(
+                            print("Boot version: {}.{}.{} (proto = {})".format(
                                 ufl.boot_fw_version[0], ufl.boot_fw_version[1],
-                                ufl.boot_fw_version[2]))
+                                ufl.boot_fw_version[2], ufl.proto_ver))
                         else:
                             print("Boot version: N/A")
 

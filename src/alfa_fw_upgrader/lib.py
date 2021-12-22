@@ -616,15 +616,17 @@ class AlfaFirmwareLoader:
             return out
 
         def dec_boot_versions(src):
-            """ decode out parameters of command boot versions """
+            """ decode out parameters of command boot versions
+            field boot_slaves is an array of tuples 
+            (protocol, (major num, minor1, minor2)) """
 
             def get_ver_tuple(x): return (x[0], x[1], x[2])
 
             s = src['boot_slaves_protocol_version']
 
-            out = []
+            out = {}
             for i in range(0, len(s) // 4):
-                out.append(
+                out[i + 1] = (
                     (s[i * 4], (s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3])))
 
             return {
@@ -640,10 +642,10 @@ class AlfaFirmwareLoader:
 
             s = src['slaves']
 
-            out = []
+            out = {}
             for i in range(0, len(s) // 3):
-                out.append(get_ver_tuple(
-                    [s[i * 3], s[i * 3 + 1], s[i * 3 + 2]]))
+                out[i + 1] = get_ver_tuple(
+                    [s[i * 3], s[i * 3 + 1], s[i * 3 + 2]])
 
             return {
                 'MAB_MGB_protocol': src['MAB_MGB_protocol'][0],
@@ -949,6 +951,9 @@ class AlfaPackageLoader:
                 afl.disconnect()
 
         program_steps = {}
+
+        if self.boot_versions['boot_master_protocol'] < 1:
+            raise RuntimeError("upgrade not supported by master")
         for program in self.manifest["programs"]:
             for addr in program['addresses']:
                 if addr != 255 and addr in self.slaves_configuration:
@@ -967,17 +972,22 @@ class AlfaPackageLoader:
             try:
                 program = self.programs_hex[step['filename']]
                 afl = AlfaFirmwareLoader(**conn_args)
-                afl.erase()
-                afl.program(program)
-                assert afl.verify(program, check_digest=False)
-                afl.seal(program)
-                afl.disconnect()
-            except BaseException:
+                if afl.boot_fw_version is None or afl.proto_ver < 1:
+                    self.report_problem(
+                        f"slave with address {address} is incompatible or "
+                        f"not present - NOT upgrading")
+                else:
+                    afl.erase()
+                    afl.program(program)
+                    assert afl.verify(program, check_digest=False)
+                    afl.seal(program)
+
+            except BaseException as e:
                 self.report_problem(
-                    f"failed to program slave with address {address}")
-                if not initialize_ok:
-                    raise RuntimeError(
-                        "failed to program master and to initialize")
+                    f"failed to program slave with address {address}, {e}")
+            finally:
+                if afl is not None:
+                    afl.disconnect()
 
             current_step += 1
 

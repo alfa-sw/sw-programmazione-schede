@@ -11,23 +11,23 @@
       var current_box;
       var busy = false;
       var current_process = null;
-      
+
       // manual mode variables
       var manual_hex_ready = false;
       var manual_connected = false;
-      
+
       // machine upgrade mode variables
       var machine_busy = false;
       var machine_problems = [];
 
       async function html_init() {
         window.resizeTo(1100, 600);
-        set_current_box("welcome");
+        set_current_box("machine");
         load_settings();
-        
+
         document.getElementById('header-info')
          .innerHTML = "v" + await eel.say_hello_py()();
-        
+
         var el = document.getElementById('manual-device-id');
         for (var i = 1; i<=254; i++){
           var opt = document.createElement('option');
@@ -35,26 +35,27 @@
           opt.innerHTML = i.toString() + " (0x" + i.toString(16) + ")";
           el.appendChild(opt);
         }
-        
+
         manual_result();
       }
     
       function set_current_box(box) {
         var boxes = [
-          'welcome',
           'manual',
           'machine'
         ];
-       
+ 
         boxes.forEach(function(element) {
           document.getElementById('box-' + element).style.display = "none";
         });
-        
+
         document.getElementById('box-' + box).style.display = "block";
 
-        elm = document.querySelectorAll(".navbar-menu button");        
+        elm = document.querySelectorAll(".navbar-menu button");
         elm.forEach(el => el.classList.remove("is-primary"));
         document.querySelector("#link-to-box-" + box).classList.add("is-primary");
+
+        manual_result();
       }
 
       function set_navbar_enabled(enabled) {
@@ -62,38 +63,50 @@
         if (!enabled)
           elm.forEach(el => el.setAttribute("disabled", true));
         else
-          elm.forEach(el => el.removeAttribute("disabled"));        
+          elm.forEach(el => el.removeAttribute("disabled"));
       }
-      
+
+      function toggle_expert() {
+        var children = document.querySelectorAll(".expert");
+        var checked = document.getElementById('setting-expert').checked;
+        console.log(children);
+        children.forEach(el => el.style = "display: " + (checked ? "block" : "none"));
+      }
+
       async function load_settings() {
         settings = await eel.get_settings()();
         document.getElementById('setting-serial-port').value = settings.serial_port;
-        document.getElementById('setting-strategy').value = settings.strategy;         
+        document.getElementById('setting-strategy').value = settings.strategy; 
+        document.getElementById('setting-expert').checked = settings.expert; 
         
         if ("_default" in settings && settings["_default"])
           open_settings_box();
+        
+        toggle_expert();
       }
 
       function save_settings() {
         console.log("save");
         settings.serial_port = document.getElementById('setting-serial-port').value;
         settings.strategy = document.getElementById('setting-strategy').value;
+        settings.expert = document.getElementById('setting-expert').checked;
         eel.save_settings(settings);
+        toggle_expert();
       }
-      
+
       function open_settings_box() {
         document.getElementById('settings-box').classList.add('is-active');
       }
-      
+
       function close_settings_box() {
-        document.getElementById('settings-box').classList.remove('is-active');      
+        document.getElementById('settings-box').classList.remove('is-active');
       }
-      
+
       function set_busy(is_busy, process_name = null) {
         busy = is_busy;
-               
+ 
         var buttons = Array.from(document.getElementsByClassName("button"));
-        
+
         if (is_busy) {
           current_process = process_name;
           buttons.forEach(el => el.setAttribute("disabled", true));
@@ -102,13 +115,13 @@
           buttons.forEach(el => el.removeAttribute("disabled"));
         }
       }
-      
+
       function loadFile(dom_id, callback) {
         var inputField = document.getElementById(dom_id);
         var selectedFiles = inputField.files;
         if (selectedFiles.length == 0)
             return callback(null);
-            
+    
         for(var i=0; i<selectedFiles.length; i++) {
             var file = selectedFiles[i];
             var reader = new FileReader();
@@ -121,7 +134,7 @@
             break; // consider only the 1st file
         }
       }
-      
+
       function load_hex_file() {
         set_busy(true, "load_hex");
         loadFile('manual-file-input', function(data) {
@@ -139,7 +152,7 @@
         set_busy(true, action);
         document.getElementById('manual-progress').style.display = "block";
         document.getElementById("manual-message-operation").style.display = "none";
-        
+
         eel.process_manual({
           'action': action,
           'device_id': document.getElementById('manual-device-id').value
@@ -161,7 +174,7 @@
             machine_busy = true;
             btn.removeAttribute("disabled");
             btn.innerHTML = "Abort";
-            machine_result(null);            
+            machine_result(null);    
             eel.process_machine({'action': 'start', 'filedata': data});
           });
         }
@@ -170,15 +183,13 @@
           document.querySelector("#machine-message-operation > .message-header").innerHTML = "Aborting";
           eel.process_machine({'action': 'stop'});
         }
-        
       }
-
 
       function manual_operation(operation) {
         set_busy(true, operation);
         document.getElementById('manual-progress').style.display = "block";
         document.getElementById("manual-message-operation").style.display = "none";
-        
+
         eel.process_manual({
           'action': operation,
           });
@@ -192,7 +203,7 @@
         else
           machine_result(process_sts);
       }
-      
+
       function manual_result(process_sts = null) {
         if (current_process == "load_hex") {
           var text, cls;
@@ -202,13 +213,14 @@
           } else {
             text = "Failed to load file.<br> " + process_sts.output;
             cls = "is-danger";
-          }        
+          }
           id = "manual-message-hex";
-          var parent = document.querySelector("#" + id);        
+          var parent = document.querySelector("#" + id);
           var child = document.querySelector("#" + id + " > .message-body");
           parent.style.display = "block";
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
+          parent.classList.remove('is-warning');  
           parent.classList.add(cls);
           child.innerHTML = text;
           manual_hex_ready = true;
@@ -221,35 +233,36 @@
             title = "Success"
             cls = "is-success";
           } else {
-            title = "Failure";          
+            title = "Failure";  
             text = process_sts.output;
             cls = "is-danger";
           }
 
           if (current_process == "jump" || current_process == "reset")
             connect_disconnect();
-          
+  
           id = "manual-message-operation";
-          var parent = document.querySelector("#" + id);        
+          var parent = document.querySelector("#" + id);
           var header = document.querySelector("#" + id + " > .message-header");
           var body = document.querySelector("#manual-message-content");
           parent.style.display = "block";
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
+          parent.classList.remove('is-warning');
           if (cls != "") parent.classList.add(cls);
           body.innerHTML = text;
           header.innerHTML = title;
-          
+  
           if (current_process == "connect")
             manual_connected = (process_sts.result == "ok");
           else if (current_process == "disconnect") 
             manual_connected = (process_sts.result != "ok");
-          
+  
           document.getElementById('manual-progress').style.display = "none";
         }
 
         set_busy(false);
-        
+
         var children = document.querySelectorAll("#manual-operation-buttons button");
 
         if (!manual_connected) {
@@ -266,19 +279,19 @@
             var children = document.querySelectorAll("#manual-operation-buttons .need-hex");
             children.forEach(el => el.setAttribute("disabled", true));
         }
-        set_navbar_enabled(!manual_connected);        
+        set_navbar_enabled(!manual_connected);
       }
 
       function machine_result(process_sts = null) {
           console.log("Machine result");
           id = "machine-message-operation";
-          
+  
           if (process_sts == null) {
             document.querySelector("#machine-message-operation").style.display = "block";
             document.querySelector("#machine-progress-task").setAttribute("value", 0);
             document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
             document.querySelector("#machine-progress-task").classList.add("is-primary");
-            document.querySelector("#machine-progress-subtask").classList.add("is-primary");            
+            document.querySelector("#machine-progress-subtask").classList.add("is-primary");    
             document.querySelector("#machine-task").innerHTML = "";
             document.querySelector("#machine-subtask").innerHTML = "";
             document.querySelector("#machine-problems").innerHTML = "None";
@@ -287,12 +300,12 @@
             machine_problems = [];
             return;
           }
-          
-          var parent = document.querySelector("#" + id);        
+  
+          var parent = document.querySelector("#" + id);
           var header = document.querySelector("#" + id + " > .message-header");
-          
+  
           var title, message, cls;
-          
+  
           if (process_sts.result == "update_problem" ||
             process_sts.result == "update_status") {
               title = "Update in process";
@@ -310,36 +323,43 @@
                   document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
                   document.querySelector("#machine-subtask").innerHTML = "";
                 }
-                
+  
                 document.querySelector("#" + id_label).innerHTML = data.current_op;
-                
+  
                 if (data.total_steps != 0)
                    document.querySelector("#" + id_progress).setAttribute(
                     "value", 100 * (data.step - 1) / data.total_steps);
                 else
                    document.querySelector("#" + id_progress).removeAttribute("value");
               } else {
+                console.log("Machine problems");
                 machine_problems.unshift(process_sts.output);
+                console.log(machine_problems);
                 txt = "";
                 for (el in machine_problems) {
-                  txt += "<li>" + el + "</li>";
+                  txt += "<li>" + machine_problems[el] + "</li>";
                 }
                 txt = "<ul>" + txt + "</ul>";
-                document.querySelector("#machine-message-result").style.display = "block";
-                document.querySelector("#machine-message-content").innerHTML = txt;
+                document.querySelector("#machine-problems").style.display = "block";
+                document.querySelector("#machine-problems").innerHTML = txt;
               }
           } else {
               var btn = document.querySelector("#machine-btn-connect");
               btn.removeAttribute("disabled");
               btn.innerHTML = "Start update";
-              
+
               if (process_sts.result == "ok") {
-                  title = "Update completed successfully";
+                  title = "Update completed ";
                   cls = "is-success";
                   document.querySelector("#machine-progress-task").setAttribute("value", 100);
                   document.querySelector("#machine-progress-subtask").setAttribute("value", 100);
-                  if (machine_problems.length == 0)
+                  if (machine_problems.length > 0) {
+                    title += ` with ${machine_problems.length} issue(s)`;
+                    cls = "is-warning";
+                  } else {
+                    title += "successfully";
                     document.querySelector("#machine-problems").innerHTML = "";
+                  }
                   machine_busy = false;
                   set_busy(false);
               } else {
@@ -350,22 +370,23 @@
                   machine_busy = false;
                   set_busy(false);
               }
-              document.querySelector("#machine-message-result").style.display = "block";              
+              document.querySelector("#machine-message-result").style.display = "block";
               document.querySelector("#machine-message-content").innerHTML = process_sts.output;
-              
+
           }
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
+          parent.classList.remove('is-warning');
           if (cls != "") parent.classList.add(cls);
 
           header.innerHTML = title;
       }
 
       function show_window(title, message, button_label = null, button_fct = null) {
-        var parent = document.querySelector("#window");      
+        var parent = document.querySelector("#window");
         var title_el = document.querySelector("#window .modal-card-title");
         var body_el = document.querySelector("#window .modal-card-body");
-        
+
         parent.classList.add('is-active');
         title_el.innerHTML = title;
         body_el.innerHTML = message;
@@ -379,9 +400,9 @@
         var parent = document.querySelector("#window");
         parent.classList.remove('is-active');
       }
-      
+
       async function show_log() {
-        var data = await eel.get_log()();      
+        var data = await eel.get_log()();
         var div = 
         '<div class=block" style="max-height: 150px; overflow-y: auto;">' +
         '<div class="container" id="machine-problems"><pre>' + 
@@ -397,7 +418,7 @@
         var btn = document.querySelector("#window-btn");
         btn.innerHTML = "";
         btn.appendChild(a);
-        
+
      }
     </script>
   </head>
@@ -411,16 +432,13 @@
       </div>
 
       <div id="navbarBasicExample" class="navbar-menu">
-        <div class="navbar-start">       
+        <div class="navbar-start"> 
           <div class="navbar-item">
             <div class="buttons">
-              <button class="button" id="link-to-box-welcome" onclick="set_current_box('welcome')">
-                <strong>Welcome</strong>
-              </button>
               <button class="button" id="link-to-box-machine" onclick="set_current_box('machine')">
                 <strong>Machine update</strong>
               </button>
-              <button class="button" id="link-to-box-manual" onclick="set_current_box('manual')">
+              <button class="button expert" id="link-to-box-manual" onclick="set_current_box('manual')">
                 <strong>Manual mode</strong>
               </button>
             </div>
@@ -444,44 +462,6 @@
       </div>
     </nav>  
 
-    <div class="box" id="box-welcome">
-      <div class="box">
-        <p class="title">Welcome to alfa_fw_upgrader!</p>
-        <p>This tool will guide you to upgrade one or more of our boards, or all of them.</p>
-      </div>
-      <div class="tile is-ancestor">
-        <div class="tile is-parent is-vertical">
-          <article class="tile is-child notification is-dark-grey">
-            <p class="title">adjust settings</p>
-            <p class="subtitle">set the parameters to connect and programs boards</p>
-            <p class="buttons">
-              <button class="button" onclick="open_settings_box();">Go to settings</button>
-            </p>
-          </article>
-        </div>
-        <div class="tile is-parent">
-          <article class="tile is-child notification is-dark-grey">
-            <div class="content">
-              <p class="title">machine update</p>
-              <p class="subtitle">perform a complete update from a package</p>
-              <p class="buttons">
-                <button class="button" onclick="set_current_box('machine')">Go to page</button>
-              </p>
-            </div>
-          </article>
-        </div>  
-        <div class="tile is-parent">
-          <article class="tile is-child notification  is-dark-grey">
-            <p class="title">manual mode</p>
-            <p class="subtitle">connect and program a single board</p>
-            <p class="buttons">
-              <button class="button" onclick="set_current_box('manual')">Go to page</button>
-            </p>
-          </article>
-        </div>
-      </div>      
-    </div>
-
     <div class="box" id="box-manual">
       <div class="field">
         <label class="label">Device address</label>
@@ -499,12 +479,12 @@
           <div class="message-body">
             Please select a file to perform program/verify operations.
           </div>
-        </article>        
+        </article>
         <div class="control">
           <input type="file" id="manual-file-input" onchange="load_hex_file()">
         </div>
       </div>
-      
+
       <div class="buttons" >
         <button class="button is-fullwidth" id="manual-btn-connect" onclick="connect_disconnect();">Connect to device</button>
         <div class="tile is-ancestor box" id="manual-operation-buttons">
@@ -512,7 +492,7 @@
             <button class="button is-fullwidth"  onclick="manual_operation('info');">Get info</button>
           </div>
           <div class="tile">
-            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program');">Program</button>        
+            <button class="button is-fullwidth need-hex"  onclick="manual_operation('program');">Program &amp; Verify</button>
           </div>
           <div class="tile">
             <button class="button is-fullwidth need-hex"  onclick="manual_operation('verify');">Verify</button>
@@ -544,11 +524,11 @@
           <input type="file" id="machine-file-input">
         </div>
       </div>
-      
+
       <div class="buttons" >
         <button class="button is-fullwidth" id="machine-btn-connect" onclick="machine_upgrade();">Start update</button>
       </div>
-      
+
       <article class="message" id="machine-message-operation" style="display:none;">
         <div class="message-header">
           Operation result
@@ -564,8 +544,8 @@
              <b>Sub-task: </b><span id="machine-subtask">-</span>
              <progress id="machine-progress-subtask" class="progress is-middle is-primary" max="100" style="display:block;"></progress>
              <b>Non-blocking issues:</b>
-             <div class="block" style="max-height: 150px; overflow-y: auto;">
-                <div class="container" id="machine-problems">
+             <div class="box" style="max-height: 150px; overflow-y: auto;">
+                <div class="" id="machine-problems">
                     None
                 </div>
             </div>
@@ -604,14 +584,25 @@
             </div>
           </div>
           <div class="field">
-            <label class="label">Connection Modality</label>
-            <div class="control">
-              <div class="select">
-                <select id="setting-strategy">
-                  <option value="simple">Simple (legacy mode)</option>
-                  <option value="polling">Polling (first start connecting, then power on the board)</option>
-                  <option value="serial">Serial (go to update mode when application is running)</option>
-                </select>
+            <label class="checkbox">
+              <input type="checkbox" id="setting-expert" onchange="toggle_expert();">
+              Enable expert mode
+            </label>
+          </div>
+          <div class="expert">
+            <div class="notification is-danger">
+              DO NOT ENABLE UNLESS YOU ARE AWARE OF WHAT YOU ARE DOING!
+            </div>
+            <div class="field">
+              <label class="label">Connection Modality</label>
+              <div class="control">
+                <div class="select">
+                  <select id="setting-strategy">
+                    <option value="simple">Simple (legacy mode)</option>
+                    <option value="polling">Polling (first start connecting, then power on the board)</option>
+                    <option value="serial">Serial (go to update mode when application is running)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>

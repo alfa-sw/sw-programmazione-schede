@@ -41,6 +41,10 @@ USERDIR = AppDirs("alfa_fw_upgrader", "alfa").user_data_dir
 
 
 class GUIApplication:
+    DESCRIPTION = "An utility to program Alfa PIC based boards " \
+                  "using USB based bootloader - Web/Graphical user interface."
+    NAME = "alfa_fw_upgrader"
+
     hex_available = None
 
     default_settings = {
@@ -196,7 +200,7 @@ class GUIApplication:
 
     def get_settings(self):
         try:
-            with open(os.path.join(USERDIR, 'settings.yaml'), 'r') as f:
+            with open(self.settings_filename, 'r') as f:
                 self.settings = yaml.load(f.read(), Loader=yaml.SafeLoader)
             self.settings_from_default = False
         except BaseException:
@@ -205,7 +209,7 @@ class GUIApplication:
             self.settings_from_default = True
 
     def save_settings(self):
-        fn = os.path.join(USERDIR, 'settings.yaml')
+        fn = self.settings_filename
         Path(USERDIR).mkdir(parents=True, exist_ok=True)
 
         with open(fn, 'w+') as f:
@@ -218,16 +222,13 @@ class GUIApplication:
 
     def __init__(self):
         self.hex_available = False
-
-        print("** No arguments given. -h for usage details of command line "
-              "interface. Starting GUI **")
-
-        self.get_settings()
         eel.init(importlib_resources.files(templates),
                  allowed_extensions=['.js', '.html', '.ico'])
 
         self.worker = None
         self.stop_request = False
+
+        self.settings_filename = os.path.join(USERDIR, 'settings.yaml')
 
         @eel.expose  # Expose this function to Javascript
         def say_hello_py():
@@ -353,6 +354,36 @@ class GUIApplication:
         logging.info("Update finished")
 
     def run(self):
+        parser = argparse.ArgumentParser(
+            prog=self.NAME,
+            description=self.DESCRIPTION,
+            formatter_class=argparse.RawDescriptionHelpFormatter)
+
+        parser.add_argument(
+            '-s',
+            '--settings-file',
+            dest='settingsfile',
+            type=str,
+            default='',
+            help='filename with app settings - if not specified '
+                 'use system preferences folder')
+
+        parser.add_argument(
+            '-p',
+            '--http-port',
+            dest='httpport',
+            type=int,
+            default=0,
+            help='set the HTTP port to listen to - use this argument '
+                 'to start a web server instead of opening a window')
+
+        self.args = parser.parse_args()
+
+        if self.args.settingsfile != '':  # argument not set
+            self.settings_filename = self.args.settingsfile
+
+        self.get_settings()
+
         logging.basicConfig(
             stream=sys.stdout, level="DEBUG",
             format="[%(asctime)s]%(levelname)s %(funcName)s() "
@@ -366,13 +397,18 @@ class GUIApplication:
         logging.getLogger().addHandler(self.logging_handler)
         self._set_logging_stream(reset_to_stderr=True)
 
-        # to start without opening a new browser:
-        #~ eel.start('index.html', mode=False, port=8080)
-        eel.start('index.html')
+        if self.args.httpport == 0:  # argument not set
+            eel.start('index.html')
+        else:
+            # to start without opening a new browser
+            print(
+                f"Service starting - URL: http://localhost:{self.args.httpport}/")
+            eel.start('index.html', mode=False, port=self.args.httpport)
+
 
 class Application:
     DESCRIPTION = "An utility to program Alfa PIC based boards " \
-                  "using USB based bootloader."
+                  "using USB based bootloader - Command line interface."
     NAME = "alfa_fw_upgrader"
     EXAMPLE_TEXT = '''Actions:
 - update: program and verify boards according to given package file

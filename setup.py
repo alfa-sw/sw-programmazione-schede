@@ -39,7 +39,7 @@ def main():
         ],
         packages=find_packages(where='src'),
         package_dir={'': 'src'},
-        include_package_data=True,
+        package_data={'alfa_fw_upgrader': ['data/templates/*']},
         scripts=[
             'bin/alfa_fw_upgrader_gui',
             'bin/alfa_fw_upgrader_gui.py',

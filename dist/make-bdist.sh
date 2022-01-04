@@ -34,7 +34,7 @@ python setup.py bdist_wheel
 cp dist/*.whl $OUT_DIR/stage1/
 cp dist/*.whl $OUT_DIR/stage2/
 cp -R src $OUT_DIR/stage1/alfa_fw_upgrader_src
-cp bin/alfa_fw_upgrader_launcher.py $OUT_DIR/stage1/
+cp bin/alfa_fw_upgrader_gui.py $OUT_DIR/stage1/
 cp __version__ $OUT_DIR/stage2/
 
 cp -R $OUT_DIR/stage1 $OUT_DIR/stage1_win

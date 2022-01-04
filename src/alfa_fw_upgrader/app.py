@@ -353,6 +353,11 @@ class GUIApplication:
         logging.info("Update finished")
 
     def run(self):
+        logging.basicConfig(
+            stream=sys.stdout, level="DEBUG",
+            format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                   "%(filename)s:%(lineno)d %(message)s")
+
         self.logging_handler = logging.StreamHandler(sys.stderr)
         logging.basicConfig(
             level="DEBUG",
@@ -364,7 +369,6 @@ class GUIApplication:
         # to start without opening a new browser:
         #~ eel.start('index.html', mode=False, port=8080)
         eel.start('index.html')
-
 
 class Application:
     DESCRIPTION = "An utility to program Alfa PIC based boards " \
@@ -549,191 +553,183 @@ To perform verify only, with debug info and reset,
                             choices=self.actions,
                             help="actions to perform")
 
-        if len(sys.argv) < 2:
-            logging.basicConfig(
-                stream=sys.stdout, level="DEBUG",
-                format="[%(asctime)s]%(levelname)s %(funcName)s() "
-                       "%(filename)s:%(lineno)d %(message)s")
-            gui = GUIApplication()
-            gui.run()
+        self.args = parser.parse_args()
+
+        level = "ERROR"
+        if self.args.verbosity is not None:
+            if self.args.verbosity >= 2:
+                level = "DEBUG"
+            elif self.args.verbosity == 1:
+                level = "INFO"
+
+        logging.basicConfig(
+            stream=sys.stdout, level=level,
+            format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                   "%(filename)s:%(lineno)d %(message)s")
+
+        if 'update' in self.args.actions:
+            if self.args.filename is None:
+                self._exit_error("FILENAME_REQUIRED")
+
+            with open(self.args.filename, 'rb') as f:
+                zip_data = f.read()
+
+            problems = []
+
+            def callback(status=None, problem=None):
+                if status is not None:
+                    if status["process"]["subprocess"] != "":
+                        print(" Subtask {}/{}: {}".format(
+                            status["subprocess"]["step"],
+                            status["subprocess"]["total_steps"],
+                            status["subprocess"]["current_op"]))
+                    else:
+                        print("Task {}/{}: {}".format(
+                            status["process"]["step"],
+                            status["process"]["total_steps"],
+                            status["process"]["current_op"]))
+
+                if problem is not None:
+                    problems.append(problem)
+                    print("WARNING: ", problem)
+
+            conn_args = {
+                "serialPort": self.args.serialport,
+                "pollingInterval": self.args.pollingtime,
+                "cmdRetries": self.args.cmdretries,
+                "cmdTimeout": self.args.cmdtimeout
+            }
+
+            apl = AlfaPackageLoader(zip_data, conn_args, callback)
+
+            print("Starting to update...")
+            try:
+                apl.process()
+            except Exception as e:
+                self._exit_error("UPDATE_FAILED", str(e))
+
+            print("Update finished")
+
+            if len(problems) > 0:
+                print("but the following problem occurred:")
+                for e in problems:
+                    print(f" - {e}")
+
         else:
-            self.args = parser.parse_args()
+            # put actions in the right order and avoid repetitions
+            actions = [x for x in self.actions if x in self.args.actions]
 
-            level = "ERROR"
-            if self.args.verbosity is not None:
-                if self.args.verbosity >= 2:
-                    level = "DEBUG"
-                elif self.args.verbosity == 1:
-                    level = "INFO"
-
-            logging.basicConfig(
-                stream=sys.stdout, level=level,
-                format="[%(asctime)s]%(levelname)s %(funcName)s() "
-                       "%(filename)s:%(lineno)d %(message)s")
-
-            if 'update' in self.args.actions:
+            program_data = []
+            if 'program' in actions or 'verify' in actions:
                 if self.args.filename is None:
                     self._exit_error("FILENAME_REQUIRED")
-
-                with open(self.args.filename, 'rb') as f:
-                    zip_data = f.read()
-
-                problems = []
-
-                def callback(status=None, problem=None):
-                    if status is not None:
-                        if status["process"]["subprocess"] != "":
-                            print(" Subtask {}/{}: {}".format(
-                                status["subprocess"]["step"],
-                                status["subprocess"]["total_steps"],
-                                status["subprocess"]["current_op"]))
-                        else:
-                            print("Task {}/{}: {}".format(
-                                status["process"]["step"],
-                                status["process"]["total_steps"],
-                                status["process"]["current_op"]))
-
-                    if problem is not None:
-                        problems.append(problem)
-                        print("WARNING: ", problem)
-
-                conn_args = {
-                    "serialPort": self.args.serialport,
-                    "pollingInterval": self.args.pollingtime,
-                    "cmdRetries": self.args.cmdretries,
-                    "cmdTimeout": self.args.cmdtimeout
-                }
-
-                apl = AlfaPackageLoader(zip_data, conn_args, callback)
-
-                print("Starting to update...")
+                fn = self.args.filename
                 try:
-                    apl.process()
-                except Exception as e:
-                    self._exit_error("UPDATE_FAILED", str(e))
+                    with open(fn, 'r') as f:
+                        file_content = f.read()
+                        program_data = HexUtils.load_hex_to_array(
+                            file_content)
+                except BaseException:
+                    self._exit_error("FILE_LOAD_FAILED", fn)
 
-                print("Update finished")
+            try:
+                ufl = AlfaFirmwareLoader(
+                    deviceId=self.args.ID,
+                    serialMode=self.args.strategy == "serial",
+                    pollingMode=self.args.strategy == "polling",
+                    serialPort=self.args.serialport,
+                    pollingInterval=self.args.pollingtime,
+                    cmdRetries=self.args.cmdretries,
+                    cmdTimeout=self.args.cmdtimeout)
+            except Exception as e:
+                self._exit_error("INIT_FAILED", str(e))
 
-                if len(problems) > 0:
-                    print("but the following problem occurred:")
-                    for e in problems:
-                        print(f" - {e}")
+            for a in actions:
+                if a == 'info':
+                    if ufl.boot_fw_version is not None:
+                        print("Boot version: {}.{}.{} (proto = {})".format(
+                            ufl.boot_fw_version[0], ufl.boot_fw_version[1],
+                            ufl.boot_fw_version[2], ufl.proto_ver))
+                    else:
+                        print("Boot version: N/A")
 
-            else:
-                # put actions in the right order and avoid repetitions
-                actions = [x for x in self.actions if x in self.args.actions]
+                    print("Memory start address: {} / length: {}".format(
+                        ufl.starting_address, ufl.memory_length))
 
-                program_data = []
-                if 'program' in actions or 'verify' in actions:
-                    if self.args.filename is None:
-                        self._exit_error("FILENAME_REQUIRED")
-                    fn = self.args.filename
+                    if ufl.boot_versions is not None:
+                        print(
+                            "Boot versions: {}".format(
+                                ufl.boot_versions))
+                    else:
+                        print("Boot versions: N/A")
+                    if ufl.fw_versions is not None:
+                        print("FW versions: {}".format(ufl.fw_versions))
+                        print(
+                            "FW versions JSON: {}".format(
+                                json.dumps(
+                                    ufl.fw_versions)))
+                    else:
+                        print("FW versions: N/A")
+                        print("FW versions JSON: N/A")
+                    if ufl.slaves_configuration is not None:
+                        print(
+                            "Slaves enabled addresses: {}".format(
+                                ufl.slaves_configuration))
+                    else:
+                        print("Slaves enabled addresses: N/A")
+
+                    if ufl.boot_status is not None:
+                        print(
+                            "Boot status: {}".format(
+                                ufl.boot_status))
+                    else:
+                        print("Boot status: N/A")
+
+                    if ufl.digest is not None:
+                        print(
+                            "Application digest: {}".format(
+                                "%04X" % ufl.digest))
+                    else:
+                        print("Application digest: N/A")
+
+                elif a == 'program':
                     try:
-                        with open(fn, 'r') as f:
-                            file_content = f.read()
-                            program_data = HexUtils.load_hex_to_array(
-                                file_content)
+                        ufl.erase()
                     except BaseException:
-                        self._exit_error("FILE_LOAD_FAILED", fn)
+                        self._exit_error("ERASE_FAILED")
+                    try:
+                        ufl.program(program_data)
+                    except BaseException:
+                        self._exit_error("PROGRAM_FAILED")
+                    try:
+                        if not ufl.verify(
+                                program_data, check_digest=False):
+                            self._exit_error("VERIFY_DATA_MISMATCH")
+                    except BaseException:
+                        self._exit_error("VERIFY_FAILED")
+                    try:
+                        ufl.seal(program_data)
+                    except BaseException:
+                        self._exit_error("DIGEST_FAILED")
 
-                try:
-                    ufl = AlfaFirmwareLoader(
-                        deviceId=self.args.ID,
-                        serialMode=self.args.strategy == "serial",
-                        pollingMode=self.args.strategy == "polling",
-                        serialPort=self.args.serialport,
-                        pollingInterval=self.args.pollingtime,
-                        cmdRetries=self.args.cmdretries,
-                        cmdTimeout=self.args.cmdtimeout)
-                except Exception as e:
-                    self._exit_error("INIT_FAILED", str(e))
+                elif a == 'verify':
+                    try:
+                        if not ufl.verify(program_data):
+                            self._exit_error("VERIFY_DATA_MISMATCH")
+                    except BaseException:
+                        self._exit_error("VERIFY_FAILED")
+                elif a == 'reset':
+                    try:
+                        ufl.reset()
+                    except BaseException:
+                        self._exit_error("COMMAND_FAILED")
+                elif a == 'jump':
+                    try:
+                        ufl.jump()
+                    except BaseException:
+                        self._exit_error("COMMAND_FAILED")
 
-                for a in actions:
-                    if a == 'info':
-                        if ufl.boot_fw_version is not None:
-                            print("Boot version: {}.{}.{} (proto = {})".format(
-                                ufl.boot_fw_version[0], ufl.boot_fw_version[1],
-                                ufl.boot_fw_version[2], ufl.proto_ver))
-                        else:
-                            print("Boot version: N/A")
-
-                        print("Memory start address: {} / length: {}".format(
-                            ufl.starting_address, ufl.memory_length))
-
-                        if ufl.boot_versions is not None:
-                            print(
-                                "Boot versions: {}".format(
-                                    ufl.boot_versions))
-                        else:
-                            print("Boot versions: N/A")
-                        if ufl.fw_versions is not None:
-                            print("FW versions: {}".format(ufl.fw_versions))
-                            print(
-                                "FW versions JSON: {}".format(
-                                    json.dumps(
-                                        ufl.fw_versions)))
-                        else:
-                            print("FW versions: N/A")
-                            print("FW versions JSON: N/A")
-                        if ufl.slaves_configuration is not None:
-                            print(
-                                "Slaves enabled addresses: {}".format(
-                                    ufl.slaves_configuration))
-                        else:
-                            print("Slaves enabled addresses: N/A")
-
-                        if ufl.boot_status is not None:
-                            print(
-                                "Boot status: {}".format(
-                                    ufl.boot_status))
-                        else:
-                            print("Boot status: N/A")
-
-                        if ufl.digest is not None:
-                            print(
-                                "Application digest: {}".format(
-                                    "%04X" % ufl.digest))
-                        else:
-                            print("Application digest: N/A")
-
-                    elif a == 'program':
-                        try:
-                            ufl.erase()
-                        except BaseException:
-                            self._exit_error("ERASE_FAILED")
-                        try:
-                            ufl.program(program_data)
-                        except BaseException:
-                            self._exit_error("PROGRAM_FAILED")
-                        try:
-                            if not ufl.verify(
-                                    program_data, check_digest=False):
-                                self._exit_error("VERIFY_DATA_MISMATCH")
-                        except BaseException:
-                            self._exit_error("VERIFY_FAILED")
-                        try:
-                            ufl.seal(program_data)
-                        except BaseException:
-                            self._exit_error("DIGEST_FAILED")
-
-                    elif a == 'verify':
-                        try:
-                            if not ufl.verify(program_data):
-                                self._exit_error("VERIFY_DATA_MISMATCH")
-                        except BaseException:
-                            self._exit_error("VERIFY_FAILED")
-                    elif a == 'reset':
-                        try:
-                            ufl.reset()
-                        except BaseException:
-                            self._exit_error("COMMAND_FAILED")
-                    elif a == 'jump':
-                        try:
-                            ufl.jump()
-                        except BaseException:
-                            self._exit_error("COMMAND_FAILED")
-
-                ufl.disconnect()
+            ufl.disconnect()
 
 
 if __name__ == '__main__':

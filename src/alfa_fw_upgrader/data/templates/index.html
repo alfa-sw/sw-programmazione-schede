@@ -25,8 +25,19 @@
         set_current_box("machine");
         load_settings();
 
+        hello_obj = await eel.say_hello_py()();
+        console.log(hello_obj);
+
+        if (hello_obj.busy) {
+            show_window("Warning", "Another session is already active. " + 
+              "Close the other window or tab to proceed.", "Retry",
+              function() { location.reload() });
+            document.querySelectorAll(".delete") // remove X icon
+             .forEach(el => el.style = "display:none;");
+        }
+        
         document.getElementById('header-info')
-         .innerHTML = "v" + await eel.say_hello_py()();
+         .innerHTML = "v" + hello_obj.version;
 
         var el = document.getElementById('manual-device-id');
         for (var i = 1; i<=254; i++){

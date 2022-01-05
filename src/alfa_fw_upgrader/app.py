@@ -199,8 +199,9 @@ class GUIApplication:
                 "output": "invalid action"})
 
     def get_settings(self):
+        settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
         try:
-            with open(self.settings_filename, 'r') as f:
+            with open(settings_filename, 'r') as f:
                 self.settings = yaml.load(f.read(), Loader=yaml.SafeLoader)
             self.settings_from_default = False
         except BaseException:
@@ -209,10 +210,11 @@ class GUIApplication:
             self.settings_from_default = True
 
     def save_settings(self):
-        fn = self.settings_filename
-        Path(USERDIR).mkdir(parents=True, exist_ok=True)
+        settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
+        if self.userdata_path == USERDIR:
+            Path(USERDIR).mkdir(parents=True, exist_ok=True)
 
-        with open(fn, 'w+') as f:
+        with open(settings_filename, 'w+') as f:
             f.write(yaml.dump(self.settings))
 
     def _set_logging_stream(self, reset_to_stderr=False):
@@ -228,11 +230,18 @@ class GUIApplication:
         self.worker = None
         self.stop_request = False
 
-        self.settings_filename = os.path.join(USERDIR, 'settings.yaml')
+        self.userdata_path = USERDIR
+
+        self.client_busy = False
 
         @eel.expose  # Expose this function to Javascript
         def say_hello_py():
-            return importlib_metadata.version(__package__)
+            ret = {
+                "busy": self.client_busy,
+                "version": importlib_metadata.version(__package__)
+            }
+            self.client_busy = True
+            return ret
 
         @eel.expose  # Expose this function to Javascript
         def get_settings():
@@ -353,6 +362,20 @@ class GUIApplication:
             eel.update_process_js({"result": "ok", "output": ""})
         logging.info("Update finished")
 
+    def close(self, last_page, websockets):
+        logging.info("closing session")
+
+        if len(websockets) == 0:
+            self.client_busy = False
+        self.hex_available = False
+        self.worker = None
+        self.stop_request = False
+        try:
+            self.ufl.disconnect()
+            del self.ufl
+        except BaseException:
+            logging.info("disconnecting not needed or failed")
+
     def run(self):
         parser = argparse.ArgumentParser(
             prog=self.NAME,
@@ -361,11 +384,11 @@ class GUIApplication:
 
         parser.add_argument(
             '-s',
-            '--settings-file',
-            dest='settingsfile',
+            '--user-data',
+            dest='userdata',
             type=str,
             default='',
-            help='filename with app settings - if not specified '
+            help='path to user data folder - if not specified '
                  'use system preferences folder')
 
         parser.add_argument(
@@ -377,10 +400,24 @@ class GUIApplication:
             help='set the HTTP port to listen to - use this argument '
                  'to start a web server instead of opening a window')
 
+        parser.add_argument(
+            '--cmd-connect',
+            dest='cmdconnect',
+            type=str,
+            default='',
+            help='command to execute before connecting')
+
+        parser.add_argument(
+            '--cmd-disconnect',
+            dest='cmddisconnect',
+            type=str,
+            default='',
+            help='command to execute after disconnecting')
+
         self.args = parser.parse_args()
 
-        if self.args.settingsfile != '':  # argument not set
-            self.settings_filename = self.args.settingsfile
+        if self.args.userdata != '':  # argument not set
+            self.userdata_path = self.args.userdata
 
         self.get_settings()
 
@@ -403,7 +440,8 @@ class GUIApplication:
             # to start without opening a new browser
             print(
                 f"Service starting - URL: http://localhost:{self.args.httpport}/")
-            eel.start('index.html', mode=False, port=self.args.httpport)
+            eel.start('index.html', mode=False, port=self.args.httpport,
+                      close_callback=self.close)
 
 
 class Application:

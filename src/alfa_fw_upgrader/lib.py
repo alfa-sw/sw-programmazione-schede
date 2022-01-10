@@ -617,8 +617,8 @@ class AlfaFirmwareLoader:
 
         def dec_boot_versions(src):
             """ decode out parameters of command boot versions
-            field boot_slaves is an array of tuples 
-            (protocol, (major num, minor1, minor2)) """
+            field boot_slaves is an array of tuples
+            (major num, minor1, minor2) """
 
             def get_ver_tuple(x): return (x[0], x[1], x[2])
 
@@ -627,7 +627,7 @@ class AlfaFirmwareLoader:
             out = {}
             for i in range(0, len(s) // 4):
                 out[i + 1] = (
-                    (s[i * 4], (s[i * 4 + 1], s[i * 4 + 2], s[i * 4 + 3])))
+                    (s[i * 4], s[i * 4 + 1], s[i * 4 + 2]))
 
             return {
                 'boot_master_protocol': src['boot_master_protocol'][0],

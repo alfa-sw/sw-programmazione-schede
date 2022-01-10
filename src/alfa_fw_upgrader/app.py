@@ -74,6 +74,7 @@ class GUIApplication:
         # print(setup_dict)
         if action == "connect":
             try:
+                self.exec_connect()
                 device_id = int(setup_dict["device_id"])
                 self.ufl = AlfaFirmwareLoader(
                     deviceId=device_id,
@@ -90,6 +91,7 @@ class GUIApplication:
             try:
                 self.ufl.disconnect()
                 del self.ufl
+                self.exec_disconnect()
                 eel.update_process_js({
                     "result": "ok",
                     "output": ""})
@@ -348,6 +350,7 @@ class GUIApplication:
 
         print("Starting to update...")
         try:
+            self.exec_connect()
             apl.process()
         except AlfaPackageLoader.UserInterrupt:
             eel.update_process_js({
@@ -360,6 +363,7 @@ class GUIApplication:
             #~ traceback.print_exc(file=sys.stderr)
         else:
             eel.update_process_js({"result": "ok", "output": ""})
+        self.exec_disconnect()
         logging.info("Update finished")
 
     def close(self, last_page, websockets):
@@ -387,7 +391,7 @@ class GUIApplication:
             '--user-data',
             dest='userdata',
             type=str,
-            default='',
+            default=None,
             help='path to user data folder - if not specified '
                  'use system preferences folder')
 
@@ -396,7 +400,7 @@ class GUIApplication:
             '--http-port',
             dest='httpport',
             type=int,
-            default=0,
+            default=None,
             help='set the HTTP port to listen to - use this argument '
                  'to start a web server instead of opening a window')
 
@@ -404,19 +408,22 @@ class GUIApplication:
             '--cmd-connect',
             dest='cmdconnect',
             type=str,
-            default='',
+            default=None,
             help='command to execute before connecting')
 
         parser.add_argument(
             '--cmd-disconnect',
             dest='cmddisconnect',
             type=str,
-            default='',
+            default=None,
             help='command to execute after disconnecting')
 
         self.args = parser.parse_args()
 
-        if self.args.userdata != '':  # argument not set
+        self.cmd_connect = self.args.cmdconnect
+        self.cmd_disconnect = self.args.cmddisconnect
+
+        if self.args.userdata is not None:  # argument not set
             self.userdata_path = self.args.userdata
 
         self.get_settings()
@@ -434,7 +441,7 @@ class GUIApplication:
         logging.getLogger().addHandler(self.logging_handler)
         self._set_logging_stream(reset_to_stderr=True)
 
-        if self.args.httpport == 0:  # argument not set
+        if self.args.httpport is None:  # argument not set
             eel.start('index.html')
         else:
             # to start without opening a new browser
@@ -442,6 +449,24 @@ class GUIApplication:
                 f"Service starting - URL: http://localhost:{self.args.httpport}/")
             eel.start('index.html', mode=False, port=self.args.httpport,
                       close_callback=self.close)
+
+    def exec_connect(self):
+        if self.cmd_connect is not None:
+            logging.info(f"executing {self.cmd_connect}")
+            ret = os.system(self.cmd_connect)
+            if ret:
+                logging.warning(f"command failed (os.system returned: {ret})")
+            else:
+                logging.info(f"command done")
+
+    def exec_disconnect(self):
+        if self.cmd_disconnect is not None:
+            logging.info(f"executing {self.cmd_disconnect}")
+            ret = os.system(self.cmd_disconnect)
+            if ret:
+                logging.warning(f"command failed (os.system returned: {ret})")
+            else:
+                logging.info(f"command done")
 
 
 class Application:

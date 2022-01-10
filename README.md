@@ -40,7 +40,12 @@ operations.
 
 8. Run:
 >     $ . ${VIRTENV_ROOT}/bin/activate
->     $ alfa_fw_upgrader
+
+To use GUI application:
+>     $ alfa_fw_upgrader_gui
+
+To use CLI application:
+>     $ alfa_fw_upgrader_cli
 
 ### On windows
 
@@ -78,9 +83,11 @@ Install the application.
 6. Install in edit mode:
 >     python -m pip install -e ./
 
-5. run the program:
+7. run the program:
 >     c:\work\alfa_fw_upgrader_env\Scripts\activate   
->     alfa_fw_upgrader_launcher.py
+>     alfa_fw_upgrader_gui.py
+or
+>     alfa_fw_upgrader_cli.py
 
 ### Troubleshooting
 

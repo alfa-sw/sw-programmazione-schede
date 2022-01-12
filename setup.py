@@ -44,7 +44,8 @@ def main():
             'bin/alfa_fw_upgrader_gui',
             'bin/alfa_fw_upgrader_gui.py',
             'bin/alfa_fw_upgrader_cli',
-            'bin/alfa_fw_upgrader_cli.py'
+            'bin/alfa_fw_upgrader_cli.py',
+            'bin/alfa_fw_upgrader_service'
         ],
         install_requires=[
             'pyusb',

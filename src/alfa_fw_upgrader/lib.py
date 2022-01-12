@@ -226,7 +226,9 @@ class USBManager:
         if timeout is None:
             timeout = self.cmd_timeout
 
-        timeout = timeout if not None else self.cmd_timeout
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Writing data: {}".format(
+                " ".join(["%02X" % int(b) for b in bytes(data_to_send)])))
         ret = self.dev.write(self.ep_out, data_to_send, timeout)
         if ret != len(data_to_send):
             raise RuntimeError(
@@ -244,10 +246,9 @@ class USBManager:
             timeout = self.cmd_timeout
         ret = self.dev.read(self.ep_in, length, timeout)
 
-        # TODO use lazy evaluation here
-        logging.debug("Read data: {}".format(
-            " ".join(["%02X" % int(b) for b in bytes(ret)])
-        ))
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Read data: {}".format(
+                " ".join(["%02X" % int(b) for b in bytes(ret)])))
         return ret
 
     @repetible

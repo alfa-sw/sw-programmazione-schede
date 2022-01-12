@@ -213,8 +213,7 @@ class GUIApplication:
 
     def save_settings(self):
         settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
-        if self.userdata_path == USERDIR:
-            Path(USERDIR).mkdir(parents=True, exist_ok=True)
+        Path(self.userdata_path).mkdir(parents=True, exist_ok=True)
 
         with open(settings_filename, 'w+') as f:
             f.write(yaml.dump(self.settings))

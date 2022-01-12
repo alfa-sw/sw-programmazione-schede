@@ -50,6 +50,22 @@ To use CLI application:
 To start a service suitable for rapsberry environment:
 >     $ alfa_fw_upgrader_service
 
+### supervisord configuration example
+
+```
+[program:alfa_fw_upgrader]
+command=/bin/sh -c '. /opt/alfa_cr6/venv/bin/activate && alfa_fw_upgrader_service'
+user=admin
+autostart=true
+autorestart=true
+environment=PYTHONDONTWRITEBYTECODE=1
+environment=USER=admin
+redirect_stderr=True
+stdout_logfile=/opt/alfa_cr6/log/alfa_fw_upgrader.log
+stdout_logfile_maxbytes=100000
+stdout_logfile_backups=5
+```
+
 ### On windows
 
 Install usb drivers.

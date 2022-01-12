@@ -447,7 +447,7 @@ class GUIApplication:
             print(
                 f"Service starting - URL: http://localhost:{self.args.httpport}/")
             eel.start('index.html', mode=False, port=self.args.httpport,
-                      close_callback=self.close)
+                      host='0.0.0.0', close_callback=self.close)
 
     def exec_connect(self):
         if self.cmd_connect is not None:

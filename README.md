@@ -47,6 +47,9 @@ To use GUI application:
 To use CLI application:
 >     $ alfa_fw_upgrader_cli
 
+To start a service suitable for rapsberry environment:
+>     $ alfa_fw_upgrader_service
+
 ### On windows
 
 Install usb drivers.

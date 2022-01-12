@@ -1,3 +1,12 @@
+* 0.1.6
+  Release date: 2021-01-12
+  Serial lib: rs485_master 0.1.5
+  Notes:
+   - changed usb timeout to take into account timing issues with raspberry (#28)
+   - fixed inclusion of package data into wheel
+   - split gui and cli into 2 different executables
+   - added script alfa_fw_upgrader_service
+
 * 0.1.5
   Release date: 2021-12-22
   Serial lib: rs485_master 0.1.4

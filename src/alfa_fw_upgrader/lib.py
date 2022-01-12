@@ -223,10 +223,8 @@ class USBManager:
         """ send a message to USB endpoint """
 
         data_to_send = list(data)
-        # TODO use lazy evaluation here
-        logging.debug("Writing data: {}".format(
-            " ".join(["%02X" % int(b) for b in bytes(data_to_send)])
-        ))
+        if timeout is None:
+            timeout = self.cmd_timeout
 
         timeout = timeout if not None else self.cmd_timeout
         ret = self.dev.write(self.ep_out, data_to_send, timeout)
@@ -242,7 +240,8 @@ class USBManager:
         Note that communication will hang if the length is not the right one -
         this value depends on the command. """
 
-        timeout = timeout if not None else self.cmd_timeout
+        if timeout is None:
+            timeout = self.cmd_timeout
         ret = self.dev.read(self.ep_in, length, timeout)
 
         # TODO use lazy evaluation here
@@ -293,7 +292,11 @@ class USBManager:
         data = struct.pack(fmt, self.CMD_ID_QUERY,
                            bytes(self.PASSWORD_QUERY), deviceId)
         self._send_usb_message(data)
-        buff = self._read_usb_message(64, timeout=5000)[:20]
+
+        if timeout is None:
+            timeout = self.cmd_timeout
+
+        buff = self._read_usb_message(64, timeout=timeout)[:20]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
             address1, lenght1, type2, proto_ver, \
             ver_major, ver_minor, ver_patch, boot_status, digest = \
@@ -333,7 +336,12 @@ class USBManager:
 
         # erase command does not produce any answer - send QUERY and wait
         # for the answer from this command
-        self.QUERY(timeout=5000)
+
+        timeout = 5000  # response takes longer time after erase command
+        if self.cmd_timeout > timeout:
+            timeout = self.cmd_timeout
+
+        self.QUERY(timeout=timeout)
 
     def PROGRAM(self, address: int, chunk: bytes) -> NoReturn:
         """ Write a piece of memory. No return.
@@ -471,7 +479,7 @@ class AlfaFirmwareLoader:
 
     def __init__(self, deviceId=0xff, pollingMode=False, serialMode=False,
                  serialPort='/dev/ttyUSB0', pollingInterval=10, cmdRetries=0,
-                 cmdTimeout=5000):
+                 cmdTimeout=15000):
         """
         Instantiate an object of this class.
         Note: it is possible to select either the polling and serial strategies,

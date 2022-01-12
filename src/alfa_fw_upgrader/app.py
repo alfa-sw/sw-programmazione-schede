@@ -642,8 +642,8 @@ To perform verify only, with debug info and reset,
             dest='cmdtimeout',
             type=int,
             help="timeout for USB commands in milliseconds "
-            "(default = 1000)",
-            default=1000)
+            "(default = 15000)",
+            default=15000)
 
         parser.add_argument("-v", "--verbosity", action="count",
                             help="increase output verbosity")

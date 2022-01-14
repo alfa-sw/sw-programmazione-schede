@@ -634,9 +634,9 @@ class AlfaFirmwareLoader:
             s = src['boot_slaves_protocol_version']
 
             out = {}
-            for i in range(0, len(s) // 4):
+            for i in range(0, len(s) // 3):
                 out[i + 1] = (
-                    (s[i * 4], s[i * 4 + 1], s[i * 4 + 2]))
+                    (s[i * 3], s[i * 3 + 1], s[i * 3 + 2]))
 
             return {
                 'boot_master_protocol': src['boot_master_protocol'][0],

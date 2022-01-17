@@ -1,3 +1,10 @@
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
+# pylint: disable=broad-except
+# pylint: disable=logging-format-interpolation
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=consider-using-f-string
+
 from alfa_fw_upgrader.lib import AlfaFirmwareLoader, AlfaPackageLoader
 from alfa_fw_upgrader.hexutils import HexUtils
 
@@ -234,6 +241,7 @@ class GUIApplication:
         self.userdata_path = USERDIR
 
         self.client_busy = False
+        self.settings = None
 
         @eel.expose  # Expose this function to Javascript
         def say_hello_py():
@@ -359,7 +367,7 @@ class GUIApplication:
             eel.update_process_js({
                 "result": "fail",
                 "output": self._get_output("UPDATE_FAILED", str(e))})
-            #~ traceback.print_exc(file=sys.stderr)
+            # ~ traceback.print_exc(file=sys.stderr)
         else:
             eel.update_process_js({"result": "ok", "output": ""})
         self.exec_disconnect()
@@ -456,7 +464,7 @@ class GUIApplication:
             if ret:
                 logging.warning(f"command failed (os.system returned: {ret})")
             else:
-                logging.info(f"command done")
+                logging.info("command done")
 
     def exec_disconnect(self):
         if self.cmd_disconnect is not None:
@@ -465,7 +473,7 @@ class GUIApplication:
             if ret:
                 logging.warning(f"command failed (os.system returned: {ret})")
             else:
-                logging.info(f"command done")
+                logging.info("command done")
 
 
 class Application:

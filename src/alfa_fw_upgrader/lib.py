@@ -119,6 +119,12 @@ Caveats
 
 """
 
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
+# pylint: disable=broad-except
+# pylint: disable=logging-format-interpolation
+# pylint: disable=logging-fstring-interpolation
+
 import asyncio
 
 import usb.core
@@ -207,14 +213,14 @@ class USBManager:
         self.ep_out = usb.util.find_descriptor(
             intf,
             custom_match=lambda e:
-            usb.util.endpoint_direction(e.bEndpointAddress) ==
-            usb.util.ENDPOINT_OUT)
+            usb.util.endpoint_direction(e.bEndpointAddress)
+            == usb.util.ENDPOINT_OUT)
 
         self.ep_in = usb.util.find_descriptor(
             intf,
             custom_match=lambda e:
-            usb.util.endpoint_direction(e.bEndpointAddress) ==
-            usb.util.ENDPOINT_IN)
+            usb.util.endpoint_direction(e.bEndpointAddress)
+            == usb.util.ENDPOINT_IN)
 
         assert self.ep_out is not None
         assert self.ep_in is not None
@@ -273,16 +279,16 @@ class USBManager:
         #
         # Answer message layout:
         #
-        # +--------+----------------+---------+-----------------+--------+--------+
-        # | CMD_ID | BytesPerPacket | MemType | StartingAddress | Length | Marker |
-        # | <byte> |     <byte>     | <byte>  |    <uint32>     |<uint32>| <byte> |
-        # |  [2]   |      [2]       |  [1]    |       ?         |   ?    | [0xFF] |
-        # +--------+----------------+---------+-----------------+--------+--------+
-        # +--------------------------+-----------+-----------+-----------+-----------+-----------+
-        # | BOOTLOADER_PROTO_VERSION | VER_MAJOR | VER_MINOR | VER_PATCH |  BOOT STS |  DIGEST   |
-        # |        <byte>            |  <byte>   |  <byte>   |  <byte>   |  <byte>   |  <uint16> |
-        # |        [0/1]             |     ?     |   ?       |   ?       |   ?       |   ?       |
-        # +--------------------------+-----------+-----------+-----------+-----------+-----------+
+        # +--------+----------------+---------+-----------+--------+--------+
+        # | CMD_ID | BytesPerPacket | MemType | StartAddr | Length | Marker |
+        # | <byte> |     <byte>     | <byte>  | <uint32>  |<uint32>| <byte> |
+        # |  [2]   |      [2]       |  [1]    |    ?      |   ?    | [0xFF] |
+        # +--------+----------------+---------+-----------+--------+--------+
+        # +--------------+----------+----------+----------+---------+---------+
+        # |BOOTLOADER    | VER_MAJOR| VER_MINOR| VER_PATCH| BOOT STS| DIGEST  |
+        # |_PROTO_VERSION|  <byte>  |  <byte>  |  <byte>  | <byte>  | <uint16>|
+        # | <byte>[0/1]  |     ?    |   ?      |   ?      |  ?      |  ?      |
+        # +--------------+----------+----------+----------+---------+---------+
 
         if altDeviceId is None:
             deviceId = self.deviceId
@@ -314,7 +320,7 @@ class USBManager:
             assert bytesPerAddress == 2
             assert memoryType == 1
             assert type2 == 0xFF
-            assert proto_ver == 0 or proto_ver == 1
+            assert proto_ver in (0, 1)
         except BaseException:
             RuntimeError("Invalid data in QUERY response")
 
@@ -456,7 +462,7 @@ class USBManager:
         # ~ try:
         # ~    assert cmd_id == self.CMD_ID_BOOT_FW_VERSION_REQUEST
         # ~ except:
-        #~    RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
+        # ~    RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
 
     @repetible
     def RESET_BOOT_MMT(self) -> NoReturn:
@@ -464,15 +470,13 @@ class USBManager:
         self._send_usb_message(data)
 
         # the command does not reply anything
-        return
-
-        buff = self._read_usb_message(1)
-        cmd_id = struct.unpack("<B", buff)
-
-        try:
-            assert cmd_id == self.CMD_ID_RESET_BOOT_MMT
-        except BaseException:
-            RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
+        # ~ buff = self._read_usb_message(1)
+        # ~ cmd_id = struct.unpack("<B", buff)
+        # ~
+        # ~ try:
+        # ~   assert cmd_id == self.CMD_ID_RESET_BOOT_MMT
+        # ~ except BaseException:
+        # ~   RuntimeError("Invalid data in JUMP_TO_APPLICATION response")
 
 
 class AlfaFirmwareLoader:
@@ -499,6 +503,8 @@ class AlfaFirmwareLoader:
         self.slaves_configuration = None
 
         self._current_program_data = None
+        self._current_program_segment = None
+        self._current_checksum = None
 
         usb_args = {
             "deviceId": deviceId,
@@ -516,7 +522,7 @@ class AlfaFirmwareLoader:
                     try:
                         usb = USBManager(**usb_args)
                         self.usb = usb
-                    except Exception as e:
+                    except Exception:
                         i += 1
                         logging.debug(
                             f"Polling USB, failed for the {i}-th time")
@@ -536,13 +542,13 @@ class AlfaFirmwareLoader:
                     logging.info("jumping to boot")
                     self.jump_to_boot(serialPort)
                     self.was_app_running = True
-                except BaseException:
+                except BaseException as e:
                     raise RuntimeError(
-                        "failed to jump to boot using serial commands")
+                        "failed to jump to boot using serial commands") from e
             try:
                 self.usb = USBManager(**usb_args)
-            except BaseException:
-                raise RuntimeError("failed to init USB device")
+            except BaseException as e:
+                raise RuntimeError("failed to init USB device") from e
 
             self.usb.QUERY(altDeviceId=0)
 
@@ -554,17 +560,18 @@ class AlfaFirmwareLoader:
     def _update_from_query(self):
         """ update object members from answer to QUERY """
         try:
-            address, length, proto_ver, boot_fw_version, boot_status, digest = self.usb.QUERY()
-        except BaseException:
-            raise RuntimeError("failed to query device")
+            address, length, proto_ver, boot_version, boot_status, digest = \
+                self.usb.QUERY()
+        except BaseException as e:
+            raise RuntimeError("failed to query device") from e
 
         logging.info(
-            "Response to QUERY, address = {}, length = {}, "
-            "proto_ver = {}, boot_ver = {} boot_status = {} digest = {}" .format(
+            "Response to QUERY, address = {}, length = {}, proto_ver = {},"
+            "boot_ver = {} boot_status = {} digest = {}" .format(
                 address,
                 length,
                 proto_ver,
-                boot_fw_version,
+                boot_version,
                 boot_status,
                 digest))
 
@@ -573,7 +580,7 @@ class AlfaFirmwareLoader:
 
         self.starting_address = address
         self.memory_length = length
-        self.boot_fw_version = boot_fw_version
+        self.boot_fw_version = boot_version
         self.proto_ver = proto_ver
         self.boot_status = boot_status
         self.digest = digest
@@ -587,10 +594,11 @@ class AlfaFirmwareLoader:
 
         try:
             program_segment = program_data[self.starting_address * 2:
-                                           self.starting_address * 2 +
-                                           self.memory_length * 2]
-        except BaseException:
-            raise RuntimeError("dimension of program does not fit memory")
+                                           self.starting_address * 2
+                                           + self.memory_length * 2]
+        except BaseException as e:
+            raise RuntimeError(
+                "dimension of program does not fit memory") from e
 
         try:
             data = program_segment
@@ -598,7 +606,7 @@ class AlfaFirmwareLoader:
             checksum = crc_calculator.calculate_checksum(data)
             logging.info(f"Calculated checksum is {checksum}")
         except BaseException as e:
-            raise RuntimeError("calculation of CRC failed")
+            raise RuntimeError("calculation of CRC failed") from e
 
         self._current_program_segment = program_segment
         self._current_checksum = checksum
@@ -629,7 +637,8 @@ class AlfaFirmwareLoader:
             field boot_slaves is an array of tuples
             (major num, minor1, minor2) """
 
-            def get_ver_tuple(x): return (x[0], x[1], x[2])
+            def get_ver_tuple(x):
+                return (x[0], x[1], x[2])
 
             s = src['boot_slaves_protocol_version']
 
@@ -647,7 +656,8 @@ class AlfaFirmwareLoader:
         def dec_fw_versions(src):
             """ decode out parameters of command fw versions """
 
-            def get_ver_tuple(x): return (x[0], x[1], x[2])
+            def get_ver_tuple(x):
+                return (x[0], x[1], x[2])
 
             s = src['slaves']
 
@@ -672,16 +682,17 @@ class AlfaFirmwareLoader:
                 node = proto.attach_node(src_addr)
 
                 assert(await node.wait_for_event(
-                    node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY, 5) is not None)
+                    node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY,
+                    5) is not None)
 
                 logging.debug(
-                    "waiting for status_level to reach values 0x06 or 0x04 or 0x07")
+                    "waiting for status_level to reach 0x06 or 0x04 or 0x07")
                 assert(await node.wait_for_recv_status_parameters(
-                    {"status_level": lambda x: x == 0x07 or x == 0x06 or x == 0x04},
+                    {"status_level": lambda x: x in (0x7, 0x6, 0x4)},
                     300))
 
                 ok = False
-                for i in range(0, 3):
+                for _ in range(0, 3):
                     logging.debug(
                         "command the node to enter diagnostic status")
                     j = 0
@@ -724,7 +735,7 @@ class AlfaFirmwareLoader:
                 else:
                     logging.warning("failed to retrieve boot versions")
 
-                (result, answer_params) = await node.send_request_and_watch(
+                (result, _) = await node.send_request_and_watch(
                     "DIAG_JUMP_TO_BOOT", status_params={"status_level": 0x09},
                     timeout_status_sec=5)
                 assert result == node.RequestWatchResult.SUCCESS
@@ -745,8 +756,8 @@ class AlfaFirmwareLoader:
         try:
             self.usb.ERASE()
             self.erased = True
-        except BaseException:
-            raise RuntimeError("failed to perform erase")
+        except BaseException as e:
+            raise RuntimeError("failed to perform erase") from e
 
     def program(self, program_data: list) -> NoReturn:
         """ program the application on the proper memory space.
@@ -765,17 +776,18 @@ class AlfaFirmwareLoader:
                 chunk_len = self.usb.DATA_ATTACHMENT_LEN
                 if chunk_len + cursor > len(program_segment):
                     chunk_len = len(program_segment) - cursor
-                    logging.debug("Chunk len is {}".format(chunk_len))
+                    logging.debug("Chunk len is %d", chunk_len)
                 chunk = bytes(program_segment[cursor:cursor + chunk_len])
-                logging.debug("programming on address {} chunk {} "
-                              .format(self.starting_address + cursor,
-                                      " ".join(["%02X" % int(b) for b in chunk])))
+                if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    logging.debug("programming on address {} chunk {} "
+                                  .format(self.starting_address + cursor,
+                                          " ".join(["%02X" % int(b) for b in chunk])))
                 self.usb.PROGRAM(self.starting_address + cursor // 2, chunk)
                 cursor += chunk_len
-            except BaseException:
+            except BaseException as e:
                 raise RuntimeError("programming failed between program "
                                    "positions {} and {}".format(
-                                       cursor, cursor + chunk_len))
+                                       cursor, cursor + chunk_len)) from e
 
     def seal(self, program_data: list) -> NoReturn:
         """ set the digest value. To call after programming and verifying the
@@ -784,7 +796,7 @@ class AlfaFirmwareLoader:
         :argument program_data: the entire application as a vector of bytes
         """
 
-        (program_segment, digest) = self._program_data_process(program_data)
+        (_, digest) = self._program_data_process(program_data)
 
         try:
             self.usb.PROGRAM_COMPLETE(digest)
@@ -795,8 +807,8 @@ class AlfaFirmwareLoader:
                     raise RuntimeError(
                         "digest not correctly saved by bootloader")
 
-        except BaseException:
-            raise RuntimeError("program failed during finalization")
+        except BaseException as e:
+            raise RuntimeError("program failed during finalization") from e
 
     def verify(self, program_data: list, check_digest=True) -> bool:
         """ verify the application memory on device against the given one.
@@ -814,7 +826,7 @@ class AlfaFirmwareLoader:
                 chunk_len = self.usb.DATA_ATTACHMENT_LEN
                 if chunk_len + cursor > len(program_segment):
                     chunk_len = len(program_segment) - cursor
-                    logging.debug("Chunk len is {}".format(chunk_len))
+                    logging.debug(f"Chunk len is {chunk_len}")
                 chunk = bytes(program_segment[cursor:cursor + chunk_len])
                 read_chunk = self.usb.GET_DATA(
                     self.starting_address + cursor // 2, chunk_len)
@@ -844,16 +856,17 @@ class AlfaFirmwareLoader:
 
         try:
             self.usb.RESET_BOOT_MMT()
-        except BaseException:
-            raise RuntimeError("failed to perform reset")
+            return
+        except BaseException as e:
+            raise RuntimeError("failed to perform reset") from e
 
     def jump(self) -> NoReturn:
         """ jump to main program. """
 
         try:
             self.usb.JUMP_TO_APPLICATION()
-        except BaseException:
-            raise RuntimeError("failed to jump to application")
+        except BaseException as e:
+            raise RuntimeError("failed to jump to application") from e
 
     def disconnect(self):
         self.usb.disconnect()
@@ -878,6 +891,12 @@ class AlfaPackageLoader:
                 "current_op": "",
                 "step": 0,
                 "total_steps": 0}}
+
+        self.programs_hex = {}
+        self.boot_versions = None
+        self.fw_versions = None
+        self.slaves_configuration = None
+        self.manifest = None
 
     def report_problem(self, problem):
         self.process_callback(status=None, problem=problem)
@@ -946,7 +965,7 @@ class AlfaPackageLoader:
             self.report_problem("failed to program master 1st attempt")
             if not initialize_ok:
                 raise RuntimeError(
-                    f"failed to program master and to initialize ({str(e)})")
+                    f"failed to program master and init ({str(e)})") from e
         finally:
             if afl is not None:
                 afl.disconnect()
@@ -954,8 +973,8 @@ class AlfaPackageLoader:
         if not initialize_ok:
             try:
                 self.board_init()
-            except BaseException:
-                raise RuntimeError("failed to initialize")
+            except BaseException as e:
+                raise RuntimeError("failed to initialize") from e
             finally:
                 afl.disconnect()
 
@@ -1006,8 +1025,8 @@ class AlfaPackageLoader:
             conn_args["deviceId"] = 255
             afl.jump()
             afl.disconnect()
-        except BaseException:
-            raise RuntimeError("failed to jump to application")
+        except BaseException as e:
+            raise RuntimeError("failed to jump to application") from e
         finally:
             afl.disconnect()
 
@@ -1017,14 +1036,13 @@ class AlfaPackageLoader:
         conn_args["serialMode"] = True
         conn_args["pollingMode"] = False
 
-        in_boot_mode = False
-
         self.update_status(
             "init", "retrieve data version and jump to boot", 1, 3)
 
-        def check_invalid_ver(ufl): return ufl.was_app_running is False or \
-            ufl.fw_versions is None or ufl.boot_versions is None or \
-            ufl.slaves_configuration is None
+        def check_invalid_ver(ufl):
+            return ufl.was_app_running is False or \
+                ufl.fw_versions is None or ufl.boot_versions is None or \
+                ufl.slaves_configuration is None
 
         try:
             afl = None
@@ -1057,14 +1075,13 @@ class AlfaPackageLoader:
 
     def load_package(self, package_data):
         fp = BytesIO(package_data)
-        zfp = zipfile.ZipFile(fp, "r")
+        with zipfile.ZipFile(fp, "r") as zfp:
+            with zfp.open('manifest.txt', 'r') as mfp:
+                self.manifest = yaml.load(mfp, Loader=yaml.SafeLoader)
 
-        with zfp.open('manifest.txt', 'r') as mfp:
-            self.manifest = yaml.load(mfp, Loader=yaml.SafeLoader)
-
-        self.programs_hex = {}
-        for program in self.manifest["programs"]:
-            fn = program["filename"]
-            with zfp.open(fn) as f:
-                self.programs_hex[fn] = HexUtils.load_hex_to_array(
-                    f.read().decode())
+            self.programs_hex = {}
+            for program in self.manifest["programs"]:
+                fn = program["filename"]
+                with zfp.open(fn) as f:
+                    self.programs_hex[fn] = HexUtils.load_hex_to_array(
+                        f.read().decode())

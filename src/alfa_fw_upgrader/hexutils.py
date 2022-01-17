@@ -10,7 +10,8 @@ import logging
 
 
 class HexUtils:
-    def load_mplab_table(filename: str) -> list:
+    @staticmethod
+    def load_mplab_table(filename: str) -> dict:
         """ load binary array from the table exported from MPLAB IPE to file.
         The table should be exported in this way:
         1. setup and connect
@@ -39,6 +40,7 @@ class HexUtils:
                     j = j + 4
         return pData
 
+    @staticmethod
     def dict_to_array(src: dict, size=None) -> list:
         """ get the array of bytes from a dictionary address """
 
@@ -56,6 +58,7 @@ class HexUtils:
                 logging.debug("addr:{} is out of memory".format(addr))
         return out
 
+    @staticmethod
     def load_hex_to_dict(filecontent):
         """ get the dictionary from an hex file. """
 
@@ -105,6 +108,7 @@ class HexUtils:
                     pData[totalAddress + i] = datum
         return pData
 
+    @staticmethod
     def load_hex_to_array(file_content):
         """ get binary from an hex file. """
         dic = HexUtils.load_hex_to_dict(file_content)

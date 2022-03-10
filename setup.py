@@ -49,13 +49,14 @@ def main():
         ],
         install_requires=[
             'pyusb',
-            'rs485_master>=0.1.5',
+            'rs485_master>=0.1.7',
             'eel',
             'PyYAML',
             'AppDirs',
             'importlib_resources ; python_version<"3.9"',
             'importlib_metadata ; python_version<"3.8"',
-            'crc'
+            'crc',
+            'dataclasses'
         ],
 
 

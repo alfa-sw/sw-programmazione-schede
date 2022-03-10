@@ -1,3 +1,8 @@
+"""
+alfa_fw_upgrader - a package to program Alfa PIC based boards using USB based bootloader.
+
+"""
+
 # pylint: disable=invalid-name
 # pylint: disable=missing-docstring
 # pylint: disable=broad-except
@@ -5,7 +10,8 @@
 # pylint: disable=logging-fstring-interpolation
 # pylint: disable=consider-using-f-string
 
-from alfa_fw_upgrader.lib import AlfaFirmwareLoader, AlfaPackageLoader
+from alfa_fw_upgrader.fw_loader import AlfaFirmwareLoader
+from alfa_fw_upgrader.package_loader import AlfaPackageLoader
 from alfa_fw_upgrader.hexutils import HexUtils
 
 from alfa_fw_upgrader.data import templates
@@ -228,7 +234,16 @@ class GUIApplication:
     def _set_logging_stream(self, reset_to_stderr=False):
         self.log_stream = sys.stderr if reset_to_stderr else StringIO()
         logging.debug("setting logging stream %s", self.log_stream)
-        self.logging_handler.setStream(self.log_stream)
+        try:
+            self.logging_handler.setStream(self.log_stream)
+        except AttributeError:
+            # Python < 3.7 does not have setStream()
+            self.logging_handler.acquire()
+            try:
+                self.logging_handler.flush()
+                self.logging_handler.stream = self.log_stream
+            finally:
+                self.logging_handler.release()
 
     def __init__(self):
         self.hex_available = False

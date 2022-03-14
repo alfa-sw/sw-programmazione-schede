@@ -66,7 +66,7 @@ from alfa_fw_upgrader.usb import USBManager
 
 from typing import NoReturn
 
-from alfa_serial_lib import Protocol, Node
+from alfa_serial_lib import Protocol, Node, Request
 
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
@@ -201,85 +201,21 @@ class AlfaFirmwareLoader:
         self._current_checksum = checksum
         return (program_segment, checksum)
 
-
-    async def _get_configuration_duplex(self, master_node: Node):
-
-        def dec_slaves_config(slaves_config):
-            # decode slaves_config
-            src = slaves_config['slave_ids']
-            out = []  # array of slaves addresses
-            for i in range(0, len(src) * 8):
-                bit = ((src[i // 8] >> (i % 8))) & 1
-                if bit > 0:
-                    out.append(i + 1)
-            return out
-
-        def dec_boot_versions(src):
-            """ decode out parameters of command boot versions
-            field boot_slaves is an array of tuples
-            (major num, minor1, minor2) """
-
-            def get_ver_tuple(x):
-                return (x[0], x[1], x[2])
-
-            s = src['boot_slaves_protocol_version']
-
-            out = {}
-            for i in range(0, len(s) // 3):
-                out[i + 1] = (
-                    (s[i * 3], s[i * 3 + 1], s[i * 3 + 2]))
-
-            return {
-                'boot_master_protocol': src['boot_master_protocol'][0],
-                'boot_master': get_ver_tuple(src['boot_master']),
-                'boot_slaves': out
-            }
-
-        def dec_fw_versions(src):
-            """ decode out parameters of command fw versions """
-
-            def get_ver_tuple(x):
-                return (x[0], x[1], x[2])
-
-            s = src['slaves']
-
-            out = {}
-            for i in range(0, len(s) // 3):
-                out[i + 1] = get_ver_tuple(
-                    [s[i * 3], s[i * 3 + 1], s[i * 3 + 2]])
-
-            return {
-                'MAB_MGB_protocol': src['MAB_MGB_protocol'][0],
-                'master': get_ver_tuple(src['master']),
-                'slaves': out
-            }
-
-        (result, out_params) = await master_node.send_request_and_watch(
-            "READ_SLAVES_CONFIGURATION", timeout_status_sec=2)
-        if result == master_node.RequestWatchResult.SUCCESS:
-            self.slaves_configuration = dec_slaves_config(out_params)
-        else:
+    async def _get_configuration_duplex(self, master: Node):
+        result = await master.send_request_and_wait("READ_SLAVES_CONFIGURATION")
+        if result.status != result.RequestStatus.SUCCESS:
             logging.warning("failed to retrieve slaves configuration")
+        self.slaves_configuration = result.custom_answer_dict
 
-        (result, out_params) = await master_node.send_request_and_watch(
-            "FW_VERSIONS", timeout_status_sec=2)
-        if result == master_node.RequestWatchResult.SUCCESS:
-            self.fw_versions = dec_fw_versions(out_params)
-        else:
+        result = await master.send_request_and_wait("FW_VERSIONS")
+        if result.status != result.RequestStatus.SUCCESS:
             logging.warning("failed to retrieve fw versions")
+        self.fw_versions = result.custom_answer_dict
 
-        (result, out_params) = await master_node.send_request_and_watch(
-            "BOOT_VERSIONS", timeout_status_sec=2)
-        if result == master_node.RequestWatchResult.SUCCESS:
-            self.boot_versions = dec_boot_versions(out_params)
-        else:
+        result = await master.send_request_and_wait("BOOT_VERSIONS")
+        if result.status != result.RequestStatus.SUCCESS:
             logging.warning("failed to retrieve boot versions")
-
-        (result, _) = await master_node.send_request_and_watch(
-            "DIAG_JUMP_TO_BOOT", status_params={"status_level": "JUMP_TO_BOOT"},
-            timeout_status_sec=5)
-        assert result == master_node.RequestWatchResult.SUCCESS
-
+        self.boot_versions = result.custom_answer_dict
 
     def jump_to_boot(self, serial_filename: str) -> NoReturn:
         """ use serial commands to make the application jump to bootloader /
@@ -301,15 +237,8 @@ class AlfaFirmwareLoader:
 
                 task = asyncio.ensure_future(proto.run())
 
-                assert(await node.wait_for_event(
-                    node.EventLabel.NODE_STATUS_CHANGED, node.NodeStatus.READY,
-                    5) is not None)
-
-                logging.debug(
-                    "waiting for status_level to reach 0x06 or 0x04 or 0x07")
-                assert(await node.wait_for_recv_status_parameters(
-                    {"status_level": lambda x: x in ("DIAGNOSTIC", "ALARM", "STANDBY")},
-                    300))
+                assert await node.wait_for_status(
+                    {"status_level": lambda x: x != "POWER_OFF"}, 300)
 
                 ok = False
                 for _ in range(0, 3):
@@ -317,25 +246,27 @@ class AlfaFirmwareLoader:
                         "command the node to enter diagnostic status")
                     j = 0
                     result = None
-                    while j < 5 and result != node.RequestWatchResult.SUCCESS:
-                        result = (await node.send_request_and_watch(
-                            "ENTER_DIAGNOSTIC",
-                            status_params={"status_level": "DIAGNOSTIC"},
-                            timeout_status_sec=10))[0]
+                    while j < 5 and result != Request.RequestStatus.SUCCESS:
+                        req = await node.send_request_and_wait("ENTER_DIAGNOSTIC")
+                        result = req.status
                         j = j + 1
-                    assert result == node.RequestWatchResult.SUCCESS
-                    again_to_reset_sts = await node.wait_for_recv_status_parameters(
+                    assert result == Request.RequestStatus.SUCCESS
+                    again_to_reset_sts = await node.wait_for_status(
                         {"status_level": lambda x: x != "DIAGNOSTIC"}, 5)
                     if not again_to_reset_sts:
                         ok = True
                         break
-                    else:
-                        logging.warning("node exited the diagnostic status")
+                    logging.warning("node exited the diagnostic status")
 
                 assert ok
 
                 await self._get_configuration_duplex(node)
 
+                node.send_request("DIAG_JUMP_TO_BOOT")
+
+                # do not wait for a response, just time to send command
+                await asyncio.sleep(1)
+                
                 try:
                     task.cancel()
                     await task

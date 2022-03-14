@@ -87,6 +87,7 @@ import usb.core
 import usb.util
 import struct
 import logging
+from typing import NoReturn
 
 class USBManager:
     """ This class implements the USB communication with bootloader """

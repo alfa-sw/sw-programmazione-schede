@@ -10,28 +10,23 @@ alfa_fw_upgrader - a package to program Alfa PIC based boards using USB based bo
 # pylint: disable=logging-fstring-interpolation
 # pylint: disable=consider-using-f-string
 
-from alfa_fw_upgrader.fw_loader import AlfaFirmwareLoader
-from alfa_fw_upgrader.package_loader import AlfaPackageLoader
-from alfa_fw_upgrader.hexutils import HexUtils
-
-from alfa_fw_upgrader.data import templates
-
 import argparse
 import sys
 import traceback
 import logging
-
 from io import StringIO
-
 import os
 import json
 import threading
 from pathlib import Path
-
 import yaml
-
 import eel
 from appdirs import AppDirs
+
+from alfa_fw_upgrader.fw_loader import AlfaFirmwareLoader
+from alfa_fw_upgrader.package_loader import AlfaPackageLoader
+from alfa_fw_upgrader.hexutils import HexUtils
+from alfa_fw_upgrader.data import templates
 
 if sys.version_info >= (3, 9):
     # we use importlib.resource version 3.9 API
@@ -63,6 +58,7 @@ class GUIApplication:
     default_settings = {
         "serial_port": "/dev/ttyUSB0",
         "strategy": "simple",
+        "serial_mode": "duplex",
         "expert": False
     }
 
@@ -91,12 +87,14 @@ class GUIApplication:
                 device_id = int(setup_dict["device_id"])
                 self.ufl = AlfaFirmwareLoader(
                     deviceId=device_id,
-                    serialMode=self.settings["strategy"] == "serial",
+                    useSerialProto=self.settings["strategy"] == "serial",
                     pollingMode=self.settings["strategy"] == "polling",
-                    serialPort=self.settings["serial_port"])
+                    serialPort=self.settings["serial_port"],
+                    serialProtoDuplex=self.settings["serial_mode"] == "duplex")
                 eel.update_process_js({"result": "ok", "output": ""})
 
             except Exception as e:
+                traceback.print_exc()
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("INIT_FAILED", str(e))})
@@ -641,6 +639,17 @@ To perform verify only, with debug info and reset,
             default='/dev/ttyUSB0')
 
         parser.add_argument(
+            '-m',
+            '--serial-mode',
+            dest='serial_mode',
+            choices=[
+                'duplex',
+                'multidrop'],
+            help="serial protocol mode:"
+            "- duplex (default): RS232 "
+            "- multidrop: RS485")
+
+        parser.add_argument(
             '-t',
             '--polling-time',
             dest='pollingtime',
@@ -757,6 +766,7 @@ To perform verify only, with debug info and reset,
                 ufl = AlfaFirmwareLoader(
                     deviceId=self.args.ID,
                     serialMode=self.args.strategy == "serial",
+                    serialProtoDuplex=self.args.serial_mode == "duplex",
                     pollingMode=self.args.strategy == "polling",
                     serialPort=self.args.serialport,
                     pollingInterval=self.args.pollingtime,

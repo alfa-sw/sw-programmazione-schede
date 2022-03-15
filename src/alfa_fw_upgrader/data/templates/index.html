@@ -29,13 +29,13 @@
         console.log(hello_obj);
 
         if (hello_obj.busy) {
-            show_window("Warning", "Another session is already active. " + 
+            show_window("Warning", "Another session is already active. " +
               "Close the other window or tab to proceed.", "Retry",
               function() { location.reload() });
             document.querySelectorAll(".delete") // remove X icon
              .forEach(el => el.style = "display:none;");
         }
-        
+
         document.getElementById('header-info')
          .innerHTML = "v" + hello_obj.version;
 
@@ -49,13 +49,13 @@
 
         manual_result();
       }
-    
+
       function set_current_box(box) {
         var boxes = [
           'manual',
           'machine'
         ];
- 
+
         boxes.forEach(function(element) {
           document.getElementById('box-' + element).style.display = "none";
         });
@@ -87,12 +87,12 @@
       async function load_settings() {
         settings = await eel.get_settings()();
         document.getElementById('setting-serial-port').value = settings.serial_port;
-        document.getElementById('setting-strategy').value = settings.strategy; 
-        document.getElementById('setting-expert').checked = settings.expert; 
-        
+        document.getElementById('setting-strategy').value = settings.strategy;
+        document.getElementById('setting-expert').checked = settings.expert;
+        document.getElementById('setting-serial-mode').checked = settings.serial_mode;
         if ("_default" in settings && settings["_default"])
           open_settings_box();
-        
+
         toggle_expert();
       }
 
@@ -101,6 +101,7 @@
         settings.serial_port = document.getElementById('setting-serial-port').value;
         settings.strategy = document.getElementById('setting-strategy').value;
         settings.expert = document.getElementById('setting-expert').checked;
+        settings.serial_mode = document.getElementById('setting-serial-mode').value;
         eel.save_settings(settings);
         toggle_expert();
       }
@@ -115,7 +116,7 @@
 
       function set_busy(is_busy, process_name = null) {
         busy = is_busy;
- 
+
         var buttons = Array.from(document.getElementsByClassName("button"));
 
         if (is_busy) {
@@ -132,7 +133,7 @@
         var selectedFiles = inputField.files;
         if (selectedFiles.length == 0)
             return callback(null);
-    
+
         for(var i=0; i<selectedFiles.length; i++) {
             var file = selectedFiles[i];
             var reader = new FileReader();
@@ -185,7 +186,7 @@
             machine_busy = true;
             btn.removeAttribute("disabled");
             btn.innerHTML = "Abort";
-            machine_result(null);    
+            machine_result(null);
             eel.process_machine({'action': 'start', 'filedata': data});
           });
         }
@@ -231,7 +232,7 @@
           parent.style.display = "block";
           parent.classList.remove('is-success');
           parent.classList.remove('is-danger');
-          parent.classList.remove('is-warning');  
+          parent.classList.remove('is-warning');
           parent.classList.add(cls);
           child.innerHTML = text;
           manual_hex_ready = true;
@@ -244,14 +245,14 @@
             title = "Success"
             cls = "is-success";
           } else {
-            title = "Failure";  
+            title = "Failure";
             text = process_sts.output;
             cls = "is-danger";
           }
 
           if (current_process == "jump" || current_process == "reset")
             connect_disconnect();
-  
+
           id = "manual-message-operation";
           var parent = document.querySelector("#" + id);
           var header = document.querySelector("#" + id + " > .message-header");
@@ -263,12 +264,12 @@
           if (cls != "") parent.classList.add(cls);
           body.innerHTML = text;
           header.innerHTML = title;
-  
+
           if (current_process == "connect")
             manual_connected = (process_sts.result == "ok");
-          else if (current_process == "disconnect") 
+          else if (current_process == "disconnect")
             manual_connected = (process_sts.result != "ok");
-  
+
           document.getElementById('manual-progress').style.display = "none";
         }
 
@@ -296,13 +297,13 @@
       function machine_result(process_sts = null) {
           console.log("Machine result");
           id = "machine-message-operation";
-  
+
           if (process_sts == null) {
             document.querySelector("#machine-message-operation").style.display = "block";
             document.querySelector("#machine-progress-task").setAttribute("value", 0);
             document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
             document.querySelector("#machine-progress-task").classList.add("is-primary");
-            document.querySelector("#machine-progress-subtask").classList.add("is-primary");    
+            document.querySelector("#machine-progress-subtask").classList.add("is-primary");
             document.querySelector("#machine-task").innerHTML = "";
             document.querySelector("#machine-subtask").innerHTML = "";
             document.querySelector("#machine-problems").innerHTML = "None";
@@ -311,12 +312,12 @@
             machine_problems = [];
             return;
           }
-  
+
           var parent = document.querySelector("#" + id);
           var header = document.querySelector("#" + id + " > .message-header");
-  
+
           var title, message, cls;
-  
+
           if (process_sts.result == "update_problem" ||
             process_sts.result == "update_status") {
               title = "Update in process";
@@ -334,9 +335,9 @@
                   document.querySelector("#machine-progress-subtask").setAttribute("value", 0);
                   document.querySelector("#machine-subtask").innerHTML = "";
                 }
-  
+
                 document.querySelector("#" + id_label).innerHTML = data.current_op;
-  
+
                 if (data.total_steps != 0)
                    document.querySelector("#" + id_progress).setAttribute(
                     "value", 100 * (data.step - 1) / data.total_steps);
@@ -414,9 +415,9 @@
 
       async function show_log() {
         var data = await eel.get_log()();
-        var div = 
+        var div =
         '<div class=block" style="max-height: 150px; overflow-y: auto;">' +
-        '<div class="container" id="machine-problems"><pre>' + 
+        '<div class="container" id="machine-problems"><pre>' +
         ((data.length > 100000) ? "<i>Log too long to display</i>" : data) +
         '</pre></div></div>';
         var blob = new Blob([data], {type: "text/plain"});
@@ -443,7 +444,7 @@
       </div>
 
       <div id="navbarBasicExample" class="navbar-menu">
-        <div class="navbar-start"> 
+        <div class="navbar-start">
           <div class="navbar-item">
             <div class="buttons">
               <button class="button" id="link-to-box-machine" onclick="set_current_box('machine')">
@@ -471,7 +472,7 @@
 
         </div>
       </div>
-    </nav>  
+    </nav>
 
     <div class="box" id="box-manual">
       <div class="field">
@@ -564,7 +565,7 @@
         </div>
       </article>
     </div>
-    
+
     <div class="modal" id="window">
       <div class="modal-background"></div>
       <div class="modal-card">
@@ -612,6 +613,17 @@
                     <option value="simple">Simple (legacy mode)</option>
                     <option value="polling">Polling (first start connecting, then power on the board)</option>
                     <option value="serial">Serial (go to update mode when application is running)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Serial Mode</label>
+              <div class="control">
+                <div class="select">
+                  <select id="setting-serial-mode">
+                    <option value="duplex">Duplex (RS232)</option>
+                    <option value="multidrop">Multidrop (RS485)</option>
                   </select>
                 </div>
               </div>

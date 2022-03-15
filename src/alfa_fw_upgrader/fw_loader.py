@@ -57,6 +57,7 @@ import struct
 import logging
 import time
 import zipfile
+import traceback
 from io import BytesIO
 import yaml
 from crc import CrcCalculator, Crc16
@@ -71,9 +72,9 @@ from alfa_serial_lib import Protocol, Node, Request
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
 
-    def __init__(self, deviceId=0xff, pollingMode=False, serialMode=False,
+    def __init__(self, deviceId=0xff, pollingMode=False, useSerialProto=False,
                  serialPort='/dev/ttyUSB0', pollingInterval=10, cmdRetries=0,
-                 cmdTimeout=15000):
+                 cmdTimeout=15000, serialProtoDuplex=True):
         """
         Instantiate an object of this class.
         Note: it is possible to select either the polling and serial strategies,
@@ -82,9 +83,11 @@ class AlfaFirmwareLoader:
 
         :parameter deviceId: id of the device to talk to
         :parameter pollingMode: boolean to enable the polling strategy
-        :parameter serialMode: boolean to enable the serial/remote strategy
+        :parameter useSerialProto: boolean to enable the serial/remote strategy
         :parameter serialPort: serial device filename
         :parameter pollingInterval: polling time in seconds
+        :parameter serialProtoDuplex: boolean if serial protocol is duplex,
+         otherwise if multidrop (RS485)
         """
 
         self.fw_versions = None
@@ -126,10 +129,10 @@ class AlfaFirmwareLoader:
             self.usb.QUERY(altDeviceId=0)
         except Exception as e:
             logging.info(f"USB connection failed: {e}")
-            if serialMode:
+            if useSerialProto:
                 try:
                     logging.info("jumping to boot")
-                    self.jump_to_boot(serialPort)
+                    self.jump_to_boot(serialPort, serialProtoDuplex)
                     self.was_app_running = True
                 except BaseException as e:
                     raise RuntimeError(
@@ -217,26 +220,50 @@ class AlfaFirmwareLoader:
             logging.warning("failed to retrieve boot versions")
         self.boot_versions = result.custom_answer_dict
 
-    def jump_to_boot(self, serial_filename: str) -> NoReturn:
+    async def _get_configuration_multidrop(self, proto: Protocol):
+        await asyncio.sleep(3) # wait for all nodes to get machine status
+
+        slaves = {k:node for (k, node) in proto.nodes.items() if k != 50}
+
+        self.boot_versions = {
+            'boot_master_protocol': proto.nodes[50]['boot_master_protocol'],
+            'boot_master': proto.nodes[50]['boot_fw_version'],
+            'boot_slaves_protocol_version': {
+                nid:n.status['boot_fw_version'] for (nid, n) in slaves
+            }
+        }
+
+        self.fw_versions = {
+            'MAB_MGB_protocol': proto.nodes[50]['application_protocol_version'],
+            'master': proto.nodes[50]['application_fw_version'],
+            'slaves': {
+                nid:n.status['application_fw_version'] for (nid, n) in slaves
+            }
+        }
+
+    def jump_to_boot(self, serial_filename: str, is_duplex: bool) -> NoReturn:
         """ use serial commands to make the application jump to bootloader /
         update mode.
 
         :argument serial_filename: the device file name
+        :argument is_duplex: True if serial mode is duplex
+
         """
         baudrate = 115200
-        src_addr = 200
-        mode = Protocol.ProtocolMode.DUPLEX
+        src_addr = 200 if is_duplex else 50
+        mode = Protocol.ProtocolMode.DUPLEX if is_duplex else \
+         Protocol.ProtocolMode.MULTI_DROP
 
         async def operations():
+            logging.info(f"starting operations, mode:{mode}")
             try:
+                task = None
+                proto = None
                 conn_params = dict(device_name=serial_filename,
                                    device_baudrate=baudrate)
-
                 proto = Protocol(mode, conn_params)
                 node = proto.attach_node(src_addr)
-
-                task = asyncio.ensure_future(proto.run())
-
+                task = asyncio.create_task(proto.run())
                 assert await node.wait_for_status(
                     {"status_level": lambda x: x != "POWER_OFF"}, 300)
 
@@ -260,28 +287,29 @@ class AlfaFirmwareLoader:
 
                 assert ok
 
-                await self._get_configuration_duplex(node)
+                if is_duplex:
+                    await self._get_configuration_duplex(node)
+                else:
+                    await self._get_configuration_multidrop(node)
 
                 node.send_request("DIAG_JUMP_TO_BOOT")
 
                 # do not wait for a response, just time to send command
                 await asyncio.sleep(1)
-                
-                try:
-                    task.cancel()
-                    await task
-                except asyncio.CancelledError:
-                    logging.info(f"task cancelled {task}")
-                proto.serial.close()
+            except BaseException as e:
+                raise e
+            finally:
+                if task is not None:
+                    try:
+                        task.cancel()
+                        await task
+                    except asyncio.CancelledError:
+                        logging.info(f"task cancelled {task}")
+                if proto is not None:
+                    proto.serial.close()
 
                 # wait for OS and drivers to initialize
                 await asyncio.sleep(10)
-            finally:
-                try:
-                    task.cancel()
-                    await task
-                except asyncio.CancelledError:
-                    logging.info(f"task cancelled {task}")
 
         # using threads requires to create a new event loop
         event_loop = asyncio.new_event_loop()

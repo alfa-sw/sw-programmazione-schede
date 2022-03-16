@@ -50,43 +50,35 @@ Caveats
 # pylint: disable=logging-fstring-interpolation
 
 import asyncio
-
-import usb.core
-import usb.util
-import struct
 import logging
 import time
-import zipfile
 import traceback
-from io import BytesIO
-import yaml
-from crc import CrcCalculator, Crc16
-
-from alfa_fw_upgrader.hexutils import HexUtils
-from alfa_fw_upgrader.usb import USBManager
-
+import sys
 from typing import NoReturn
 
+from crc import CrcCalculator, Crc16
+from alfa_fw_upgrader.usb import USBManager
 from alfa_serial_lib import Protocol, Node, Request
 
 class AlfaFirmwareLoader:
     """ Memory management of PIC24 based boards using USB protocol."""
 
-    def __init__(self, deviceId=0xff, pollingMode=False, useSerialProto=False,
-                 serialPort='/dev/ttyUSB0', pollingInterval=10, cmdRetries=0,
-                 cmdTimeout=15000, serialProtoDuplex=True):
+    POLLING_INTERVAL_SEC = 10
+    """ when using strategy polling, interval of time of seconds """
+
+    def __init__(self, device_id, polling_mode, use_serial_proto,
+                 serial_port, is_serial_proto_duplex):
         """
         Instantiate an object of this class.
         Note: it is possible to select either the polling and serial strategies,
         but caller should not select them together, since they refers to
         different use cases.
 
-        :parameter deviceId: id of the device to talk to
-        :parameter pollingMode: boolean to enable the polling strategy
-        :parameter useSerialProto: boolean to enable the serial/remote strategy
-        :parameter serialPort: serial device filename
-        :parameter pollingInterval: polling time in seconds
-        :parameter serialProtoDuplex: boolean if serial protocol is duplex,
+        :parameter device_id: id of the device to talk to
+        :parameter polling_mode: boolean to enable the polling strategy
+        :parameter use_serial_proto: boolean to enable the serial/remote strategy
+        :parameter serial_port: serial device filename
+        :parameter serial_proto_duplex: boolean if serial protocol is duplex,
          otherwise if multidrop (RS485)
         """
 
@@ -98,21 +90,15 @@ class AlfaFirmwareLoader:
         self._current_program_segment = None
         self._current_checksum = None
 
-        usb_args = {
-            "deviceId": deviceId,
-            "cmdRetries": cmdRetries,
-            "cmdTimeout": cmdTimeout
-        }
-        logging.debug(f"usb_args: {usb_args}")
         self.was_app_running = False
         try:
-            if pollingMode:
+            if polling_mode:
                 startTime = time.time()
                 i = 0
                 usb = None
-                while not usb and time.time() - startTime < pollingInterval:
+                while not usb and time.time() - startTime < self.POLLING_INTERVAL_SEC:
                     try:
-                        usb = USBManager(**usb_args)
+                        usb = USBManager(device_id)
                         self.usb = usb
                     except Exception:
                         i += 1
@@ -122,27 +108,28 @@ class AlfaFirmwareLoader:
                 if not usb:
                     raise RuntimeError('failed to connect')
             else:
-                self.usb = USBManager(**usb_args)
+                self.usb = USBManager(device_id)
 
             # bootloader requires to receive QUERY with device id = 0 to avoid
             # jump-to-application
-            self.usb.QUERY(altDeviceId=0)
+            self.usb.QUERY(alt_device_id=0)
         except Exception as e:
             logging.info(f"USB connection failed: {e}")
-            if useSerialProto:
+            if use_serial_proto:
                 try:
                     logging.info("jumping to boot")
-                    self.jump_to_boot(serialPort, serialProtoDuplex)
+                    self.jump_to_boot(serial_port, is_serial_proto_duplex)
                     self.was_app_running = True
                 except BaseException as e:
+                    traceback.print_exc(file=sys.stderr)
                     raise RuntimeError(
                         "failed to jump to boot using serial commands") from e
             try:
-                self.usb = USBManager(**usb_args)
+                self.usb = USBManager(device_id)
             except BaseException as e:
                 raise RuntimeError("failed to init USB device") from e
 
-            self.usb.QUERY(altDeviceId=0)
+            self.usb.QUERY(alt_device_id=0)
 
         self.starting_address = None
         self.memory_length = None
@@ -208,7 +195,7 @@ class AlfaFirmwareLoader:
         result = await master.send_request_and_wait("READ_SLAVES_CONFIGURATION")
         if result.status != result.RequestStatus.SUCCESS:
             logging.warning("failed to retrieve slaves configuration")
-        self.slaves_configuration = result.custom_answer_dict
+        self.slaves_configuration = result.custom_answer_dict['slave_ids']
 
         result = await master.send_request_and_wait("FW_VERSIONS")
         if result.status != result.RequestStatus.SUCCESS:
@@ -241,6 +228,8 @@ class AlfaFirmwareLoader:
             }
         }
 
+        self.slaves_configuration = range(50, 56)
+
     def jump_to_boot(self, serial_filename: str, is_duplex: bool) -> NoReturn:
         """ use serial commands to make the application jump to bootloader /
         update mode.
@@ -263,7 +252,7 @@ class AlfaFirmwareLoader:
                                    device_baudrate=baudrate)
                 proto = Protocol(mode, conn_params)
                 node = proto.attach_node(src_addr)
-                task = asyncio.create_task(proto.run())
+                task = asyncio.ensure_future(proto.run())
                 assert await node.wait_for_status(
                     {"status_level": lambda x: x != "POWER_OFF"}, 300)
 
@@ -296,8 +285,6 @@ class AlfaFirmwareLoader:
 
                 # do not wait for a response, just time to send command
                 await asyncio.sleep(1)
-            except BaseException as e:
-                raise e
             finally:
                 if task is not None:
                     try:

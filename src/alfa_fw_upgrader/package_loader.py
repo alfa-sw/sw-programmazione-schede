@@ -27,10 +27,10 @@ class AlfaPackageLoader:
     class UserInterrupt(Exception):
         pass
 
-    def __init__(self, package_data, conn_args, process_callback=None):
+    def __init__(self, package_data, serial_port, process_callback=None):
         self.package_data = package_data
-        self.conn_args = conn_args
         self.process_callback = process_callback
+        self.serial_port = serial_port
 
         self.sts = {
             "process": {
@@ -85,9 +85,15 @@ class AlfaPackageLoader:
         current_step += 1
         self.update_status("main", "initialize", 2, 5)
 
+        params = dict(device_id = 255,
+                      use_serial_proto = True,
+                      polling_mode = False,
+                      serial_port = self.serial_port,
+                      is_serial_proto_duplex = True)
+
         initialize_ok = False
         try:
-            self.board_init()
+            self.board_init(params)
             initialize_ok = True
         except Exception as e:
             logging.warning(
@@ -97,15 +103,10 @@ class AlfaPackageLoader:
             lambda x: x["board-name"] == "master",
             self.manifest["programs"]))[0]
 
-        conn_args = self.conn_args
-        conn_args["deviceId"] = 255
-        conn_args["serialMode"] = False
-        conn_args["pollingMode"] = False
-
         self.update_status("main", "programming master", 3, 5)
         try:
             afl = None
-            afl = AlfaFirmwareLoader(**conn_args)
+            afl = AlfaFirmwareLoader(**params)
             afl.erase()
             hexdata = self.programs_hex[master_node['filename']]
             afl.program(hexdata)
@@ -123,7 +124,7 @@ class AlfaPackageLoader:
 
         if not initialize_ok:
             try:
-                self.board_init()
+                self.board_init(params)
             except BaseException as e:
                 raise RuntimeError("failed to initialize") from e
             finally:
@@ -137,7 +138,8 @@ class AlfaPackageLoader:
             for addr in program['addresses']:
                 if addr != 255 and addr in self.slaves_configuration:
                     program_steps[addr] = program
-        logging.debug(f"programs steps: {program_steps}")
+        logging.debug(f"programs steps: {program_steps} "
+                      f"slaves_configuration: {self.slaves_configuration}")
 
         current_step = 1
         total_steps = len(program_steps)
@@ -147,10 +149,10 @@ class AlfaPackageLoader:
             self.update_status("slaves", f"programming slave #{address}",
                                current_step, total_steps)
 
-            conn_args["deviceId"] = address
             try:
                 program = self.programs_hex[step['filename']]
-                afl = AlfaFirmwareLoader(**conn_args)
+                params["device_id"] = address
+                afl = AlfaFirmwareLoader(**params)
                 if afl.boot_fw_version is None or afl.proto_ver < 1:
                     self.report_problem(
                         f"slave with address {address} is incompatible or "
@@ -172,8 +174,8 @@ class AlfaPackageLoader:
 
         try:
             self.update_status("main", "jumping to application", 5, 5)
-            afl = AlfaFirmwareLoader(**conn_args)
-            conn_args["deviceId"] = 255
+            params["device_id"] = 255
+            afl = AlfaFirmwareLoader(**params)
             afl.jump()
             afl.disconnect()
         except BaseException as e:
@@ -181,12 +183,7 @@ class AlfaPackageLoader:
         finally:
             afl.disconnect()
 
-    def board_init(self):
-        conn_args = self.conn_args
-        conn_args["deviceId"] = 255
-        conn_args["serialMode"] = True
-        conn_args["pollingMode"] = False
-
+    def board_init(self, params):
         self.update_status(
             "init", "retrieve data version and jump to boot", 1, 3)
 
@@ -195,9 +192,12 @@ class AlfaPackageLoader:
                 ufl.fw_versions is None or ufl.boot_versions is None or \
                 ufl.slaves_configuration is None
 
+        params["use_serial_proto"] = True
+        params["device_id"] = 255
+
         try:
             afl = None
-            afl = AlfaFirmwareLoader(**conn_args)
+            afl = AlfaFirmwareLoader(**params)
             if check_invalid_ver(afl):
                 logging.warning("app was not running or problem in retrieving "
                                 "version data -> jump to app and retry")
@@ -207,7 +207,7 @@ class AlfaPackageLoader:
                 afl.disconnect()
                 time.sleep(5)
                 self.update_status("init", "jump to boot again", 3, 3)
-                afl = AlfaFirmwareLoader(**conn_args)
+                afl = AlfaFirmwareLoader(**params)
 
                 if check_invalid_ver(afl):
                     raise RuntimeError(

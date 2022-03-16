@@ -86,11 +86,11 @@ class GUIApplication:
                 self.exec_connect()
                 device_id = int(setup_dict["device_id"])
                 self.ufl = AlfaFirmwareLoader(
-                    deviceId=device_id,
-                    useSerialProto=self.settings["strategy"] == "serial",
-                    pollingMode=self.settings["strategy"] == "polling",
-                    serialPort=self.settings["serial_port"],
-                    serialProtoDuplex=self.settings["serial_mode"] == "duplex")
+                    device_id=device_id,
+                    use_serial_proto=self.settings["strategy"] == "serial",
+                    polling_mode=self.settings["strategy"] == "polling",
+                    serial_port=self.settings["serial_port"],
+                    is_serial_proto_duplex=self.settings["serial_mode"] == "duplex")
                 eel.update_process_js({"result": "ok", "output": ""})
 
             except Exception as e:
@@ -362,11 +362,8 @@ class GUIApplication:
 
             return self.stop_request
 
-        conn_args = {
-            "serialPort": self.settings["serial_port"]
-        }
-
-        apl = AlfaPackageLoader(filedata, conn_args, callback)
+        apl = AlfaPackageLoader(filedata, self.settings["serial_port"],
+                                callback)
 
         print("Starting to update...")
         try:
@@ -649,33 +646,6 @@ To perform verify only, with debug info and reset,
             "- duplex (default): RS232 "
             "- multidrop: RS485")
 
-        parser.add_argument(
-            '-t',
-            '--polling-time',
-            dest='pollingtime',
-            type=str,
-            help="when strategy is 'polling', the polling time "
-            "in seconds (default = 10)",
-            default=10)
-
-        parser.add_argument(
-            '-cr',
-            '--command-retries',
-            dest='cmdretries',
-            type=int,
-            help="number of retries for USB commands "
-            "in case of failure (default = 0)",
-            default=0)
-
-        parser.add_argument(
-            '-ct',
-            '--command-timeout',
-            dest='cmdtimeout',
-            type=int,
-            help="timeout for USB commands in milliseconds "
-            "(default = 15000)",
-            default=15000)
-
         parser.add_argument("-v", "--verbosity", action="count",
                             help="increase output verbosity")
 
@@ -723,14 +693,7 @@ To perform verify only, with debug info and reset,
                     problems.append(problem)
                     print("WARNING: ", problem)
 
-            conn_args = {
-                "serialPort": self.args.serialport,
-                "pollingInterval": self.args.pollingtime,
-                "cmdRetries": self.args.cmdretries,
-                "cmdTimeout": self.args.cmdtimeout
-            }
-
-            apl = AlfaPackageLoader(zip_data, conn_args, callback)
+            apl = AlfaPackageLoader(zip_data, self.args.serialport, callback)
 
             print("Starting to update...")
             try:
@@ -764,14 +727,11 @@ To perform verify only, with debug info and reset,
 
             try:
                 ufl = AlfaFirmwareLoader(
-                    deviceId=self.args.ID,
-                    serialMode=self.args.strategy == "serial",
-                    serialProtoDuplex=self.args.serial_mode == "duplex",
-                    pollingMode=self.args.strategy == "polling",
-                    serialPort=self.args.serialport,
-                    pollingInterval=self.args.pollingtime,
-                    cmdRetries=self.args.cmdretries,
-                    cmdTimeout=self.args.cmdtimeout)
+                    device_id=self.args.ID,
+                    use_serial_proto=self.args.strategy == "serial",
+                    is_serial_proto_duplex=self.args.serial_mode == "duplex",
+                    polling_mode=self.args.strategy == "polling",
+                    serial_port=self.args.serialport)
             except Exception as e:
                 self._exit_error("INIT_FAILED", str(e))
 
@@ -861,7 +821,3 @@ To perform verify only, with debug info and reset,
                         self._exit_error("COMMAND_FAILED")
 
             ufl.disconnect()
-
-
-if __name__ == '__main__':
-    Application().main()

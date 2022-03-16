@@ -87,10 +87,29 @@ import usb.core
 import usb.util
 import struct
 import logging
-from typing import NoReturn
+import time
+from typing import NoReturn, Callable
+
+def repetible(method: Callable):
+    def wrapper(self, *args, **kwargs):
+        if self.CMD_RETRIES == 0:
+            return method(self, *args, **kwargs)
+        for i in range(1, self.CMD_RETRIES + 1):
+            try:
+                return method(self, *args, **kwargs)
+                if i >= self.CMD_RETRIES:
+                    raise RuntimeError("Method exceeds maximum number of retries")
+            except Exception as e:
+                logging.warning(f"Tentative #{i} failed - exception: {e}")
+                raise
+        return
+    return wrapper
 
 class USBManager:
     """ This class implements the USB communication with bootloader """
+
+    CMD_RETRIES = 3
+    CMD_TIMEOUT_MSEC = 15000
 
     PASSWORD_QUERY = [0x82, 0x14, 0x2A, 0x5D, 0x6F, 0x9A, 0x25, 0x01]
     USB_ID_VENDOR = 0x04d8
@@ -106,28 +125,9 @@ class USBManager:
     CMD_ID_JUMP_TO_APPLICATION = 0x09
     CMD_ID_RESET_BOOT_MMT = 0x0B
 
-    def repetible(method):
-        def decorated(self, *args, **kwargs):
-            if self.cmd_retries == 0:
-                try:
-                    return method(self, *args, **kwargs)
-                except BaseException:
-                    raise
-            for i in range(1, self.cmd_retries + 1):
-                try:
-                    return method(self, *args, **kwargs)
-                except Exception as e:
-                    logging.warning(f"Tentative #{i} failed - exception: {e}")
-                    if i >= self.cmd_retries:
-                        logging.warning(f"Failed.")
-                        raise
-        return decorated
-
-    def __init__(self, deviceId, cmdRetries, cmdTimeout):
-        self.cmd_retries = cmdRetries
-        self.cmd_timeout = cmdTimeout
+    def __init__(self, device_id):
         self._usb_init()
-        self.deviceId = deviceId
+        self.device_id = device_id
 
     def disconnect(self):
         logging.debug("disconnecting USB")
@@ -145,7 +145,7 @@ class USBManager:
         self.dev.reset()
 
         try:
-            # needed in linux because there is a kernel driver that
+            # needed on linux because there is a kernel driver that
             # take possession of our device
             self.dev.detach_kernel_driver(0)
         except BaseException:
@@ -161,15 +161,15 @@ class USBManager:
 
         self.ep_out = usb.util.find_descriptor(
             intf,
-            custom_match=lambda e:
-            usb.util.endpoint_direction(e.bEndpointAddress)
-            == usb.util.ENDPOINT_OUT)
+            custom_match=lambda e: \
+             usb.util.endpoint_direction(e.bEndpointAddress) \
+             == usb.util.ENDPOINT_OUT)
 
         self.ep_in = usb.util.find_descriptor(
             intf,
-            custom_match=lambda e:
-            usb.util.endpoint_direction(e.bEndpointAddress)
-            == usb.util.ENDPOINT_IN)
+            custom_match=lambda e: \
+             usb.util.endpoint_direction(e.bEndpointAddress) \
+             == usb.util.ENDPOINT_IN)
 
         assert self.ep_out is not None
         assert self.ep_in is not None
@@ -179,7 +179,7 @@ class USBManager:
 
         data_to_send = list(data)
         if timeout is None:
-            timeout = self.cmd_timeout
+            timeout = self.CMD_TIMEOUT_MSEC
 
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             logging.debug("Writing data: {}".format(
@@ -198,7 +198,7 @@ class USBManager:
         this value depends on the command. """
 
         if timeout is None:
-            timeout = self.cmd_timeout
+            timeout = self.CMD_TIMEOUT_MSEC
         ret = self.dev.read(self.ep_in, length, timeout)
 
         if logging.getLogger().isEnabledFor(logging.DEBUG):
@@ -207,7 +207,7 @@ class USBManager:
         return ret
 
     @repetible
-    def QUERY(self, altDeviceId=None, timeout=None):
+    def QUERY(self, alt_device_id=None, timeout=None):
         """ Command to obtain information about the memory layout - starting
         address and length of the application memory. It is also used to
         check for erasing operation finish and to setup the following
@@ -239,10 +239,10 @@ class USBManager:
         # | <byte>[0/1]  |     ?    |   ?      |   ?      |  ?      |  ?      |
         # +--------------+----------+----------+----------+---------+---------+
 
-        if altDeviceId is None:
-            deviceId = self.deviceId
+        if alt_device_id is None:
+            deviceId = self.device_id
         else:
-            deviceId = altDeviceId
+            deviceId = alt_device_id
 
         fmt = "<B{}sB".format(len(self.PASSWORD_QUERY))
         data = struct.pack(fmt, self.CMD_ID_QUERY,
@@ -250,7 +250,7 @@ class USBManager:
         self._send_usb_message(data)
 
         if timeout is None:
-            timeout = self.cmd_timeout
+            timeout = self.CMD_TIMEOUT_MSEC
 
         buff = self._read_usb_message(64, timeout=timeout)[:20]
         cmd_id, bytesPerPacket, bytesPerAddress, memoryType,  \
@@ -294,8 +294,8 @@ class USBManager:
         # for the answer from this command
 
         timeout = 5000  # response takes longer time after erase command
-        if self.cmd_timeout > timeout:
-            timeout = self.cmd_timeout
+        if self.CMD_TIMEOUT_MSEC > timeout:
+            timeout = self.CMD_TIMEOUT_MSEC
 
         self.QUERY(timeout=timeout)
 

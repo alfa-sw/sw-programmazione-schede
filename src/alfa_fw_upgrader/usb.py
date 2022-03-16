@@ -141,6 +141,9 @@ class USBManager:
         if self.dev is None:
             raise RuntimeError("USB device not found")
 
+        # USB reset is needed on platform BW551
+        self.dev.reset()
+
         try:
             # needed in linux because there is a kernel driver that
             # take possession of our device

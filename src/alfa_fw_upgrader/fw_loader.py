@@ -207,28 +207,26 @@ class AlfaFirmwareLoader:
             logging.warning("failed to retrieve boot versions")
         self.boot_versions = result.custom_answer_dict
 
-    async def _get_configuration_multidrop(self, proto: Protocol):
-        await asyncio.sleep(3) # wait for all nodes to get machine status
-
-        slaves = {k:node for (k, node) in proto.nodes.items() if k != 50}
-
+    async def _get_configuration_multidrop(self, nodes, master_node):
         self.boot_versions = {
-            'boot_master_protocol': proto.nodes[50]['boot_master_protocol'],
-            'boot_master': proto.nodes[50]['boot_fw_version'],
+            'boot_master_protocol': master_node.status['boot_protocol_version'],
+            'boot_master': master_node.status['boot_fw_version'],
             'boot_slaves_protocol_version': {
-                nid:n.status['boot_fw_version'] for (nid, n) in slaves
+                n.addr:n.status['boot_fw_version'] for n in nodes \
+                 if n.addr != master_node.addr
             }
         }
 
         self.fw_versions = {
-            'MAB_MGB_protocol': proto.nodes[50]['application_protocol_version'],
-            'master': proto.nodes[50]['application_fw_version'],
+            'MAB_MGB_protocol': master_node.status['application_protocol_version'],
+            'master': master_node.status['application_fw_version'],
             'slaves': {
-                nid:n.status['application_fw_version'] for (nid, n) in slaves
+                n.addr:n.status['application_fw_version'] for n in nodes \
+                 if n.addr != master_node.addr
             }
         }
 
-        self.slaves_configuration = range(50, 56)
+        self.slaves_configuration = [node.addr for node in nodes]
 
     def jump_to_boot(self, serial_filename: str, is_duplex: bool) -> NoReturn:
         """ use serial commands to make the application jump to bootloader /
@@ -239,9 +237,21 @@ class AlfaFirmwareLoader:
 
         """
         baudrate = 115200
-        src_addr = 200 if is_duplex else 50
+        nodes_addrs = [200, ] if is_duplex else range(50, 56)
+        master_addr = nodes_addrs[0]
         mode = Protocol.ProtocolMode.DUPLEX if is_duplex else \
-         Protocol.ProtocolMode.MULTI_DROP
+                Protocol.ProtocolMode.MULTI_DROP
+        timeout_ready = 300 if is_duplex else 20
+
+        async def proto_cleanup(task, proto):
+            if task is not None:
+                try:
+                    task.cancel()
+                    await task
+                except asyncio.CancelledError:
+                    logging.info(f"task cancelled {task}")
+            if proto is not None:
+                proto.serial.close()
 
         async def operations():
             logging.info(f"starting operations, mode:{mode}")
@@ -251,11 +261,26 @@ class AlfaFirmwareLoader:
                 conn_params = dict(device_name=serial_filename,
                                    device_baudrate=baudrate)
                 proto = Protocol(mode, conn_params)
-                node = proto.attach_node(src_addr)
+                nodes = [proto.attach_node(addr) for addr in nodes_addrs]
+                master_node = proto.nodes[master_addr]
                 task = asyncio.ensure_future(proto.run())
-                assert await node.wait_for_status(
-                    {"status_level": lambda x: x != "POWER_OFF"}, 300)
 
+                # wait for all nodes to be ready
+                for _ in range(0, timeout_ready):
+                    nodes_on = [node for node in nodes \
+                                 if node.status["status_level"] != "POWER_OFF"]
+                    if len(nodes_on) == len(nodes):
+                        break
+                    await asyncio.sleep(1)
+
+                assert master_node in nodes_on, "master node is not ready"
+
+                if len(nodes_on) != len(nodes):
+                    logging.warning("nodes {} not ready".format(
+                      [node.addr for node in nodes if node not in nodes_on]))
+
+                # following stuff to check whether status remains in Diagnostic
+                # after sending the command ENTER_DIAGNOSTIC
                 ok = False
                 for _ in range(0, 3):
                     logging.debug(
@@ -263,40 +288,36 @@ class AlfaFirmwareLoader:
                     j = 0
                     result = None
                     while j < 5 and result != Request.RequestStatus.SUCCESS:
-                        req = await node.send_request_and_wait("ENTER_DIAGNOSTIC")
+                        req = await master_node.send_request_and_wait("ENTER_DIAGNOSTIC")
                         result = req.status
                         j = j + 1
                     assert result == Request.RequestStatus.SUCCESS
-                    again_to_reset_sts = await node.wait_for_status(
+                    again_to_reset_sts = await master_node.wait_for_status(
                         {"status_level": lambda x: x != "DIAGNOSTIC"}, 5)
                     if not again_to_reset_sts:
                         ok = True
                         break
-                    logging.warning("node exited the diagnostic status")
+                    logging.warning("node exited from diagnostic status")
 
                 assert ok
 
                 if is_duplex:
-                    await self._get_configuration_duplex(node)
+                    await self._get_configuration_duplex(master_node)
                 else:
-                    await self._get_configuration_multidrop(node)
+                    await self._get_configuration_multidrop(nodes_on, master_node)
 
-                node.send_request("DIAG_JUMP_TO_BOOT")
+                master_node.send_request("DIAG_JUMP_TO_BOOT")
 
                 # do not wait for a response, just time to send command
                 await asyncio.sleep(1)
-            finally:
-                if task is not None:
-                    try:
-                        task.cancel()
-                        await task
-                    except asyncio.CancelledError:
-                        logging.info(f"task cancelled {task}")
-                if proto is not None:
-                    proto.serial.close()
 
-                # wait for OS and drivers to initialize
+                # shut up protocol, because bootloader starts to use 485
+                await proto_cleanup(task, proto)
+
+                # wait for boot to activate USB
                 await asyncio.sleep(10)
+            finally:
+                await proto_cleanup(task, proto)
 
         # using threads requires to create a new event loop
         event_loop = asyncio.new_event_loop()

@@ -19,8 +19,6 @@ from io import BytesIO
 import yaml
 
 from alfa_fw_upgrader.hexutils import HexUtils
-from typing import NoReturn
-
 from alfa_fw_upgrader.fw_loader import AlfaFirmwareLoader
 
 class AlfaPackageLoader:
@@ -47,7 +45,7 @@ class AlfaPackageLoader:
         self.boot_versions = None
         self.fw_versions = None
         self.slaves_configuration = None
-        self.manifest = None
+        self.manifest = dict()
 
     def report_problem(self, problem):
         self.process_callback(status=None, problem=problem)
@@ -89,7 +87,8 @@ class AlfaPackageLoader:
                       use_serial_proto = True,
                       polling_mode = False,
                       serial_port = self.serial_port,
-                      is_serial_proto_duplex = True)
+                      is_serial_proto_duplex = \
+                       self.manifest["proto_mode"] == "duplex")
 
         initialize_ok = False
         try:
@@ -99,10 +98,8 @@ class AlfaPackageLoader:
             logging.warning(
                 f"need to reinitialize after programming master ({str(e)})")
 
-        master_node = list(filter(
-            lambda x: x["board-name"] == "master",
-            self.manifest["programs"]))[0]
-
+        master_node = [x for x in self.manifest["programs"] \
+                       if x["board-name"] == "master"][0]
         self.update_status("main", "programming master", 3, 5)
         try:
             afl = None
@@ -134,10 +131,11 @@ class AlfaPackageLoader:
 
         if self.boot_versions['boot_master_protocol'] < 1:
             raise RuntimeError("upgrade not supported by master")
-        for program in self.manifest["programs"]:
-            for addr in program['addresses']:
-                if addr != 255 and addr in self.slaves_configuration:
-                    program_steps[addr] = program
+        for prog in self.manifest["programs"]:
+            for addr in prog['addresses']:
+                if addr in self.slaves_configuration and prog is not master_node:
+                    program_steps[addr] = prog
+
         logging.debug(f"programs steps: {program_steps} "
                       f"slaves_configuration: {self.slaves_configuration}")
 
@@ -218,13 +216,14 @@ class AlfaPackageLoader:
             self.fw_versions = afl.fw_versions
             self.slaves_configuration = afl.slaves_configuration
 
-        except Exception as e:
-            raise e
         finally:
             if afl is not None:
                 afl.disconnect()
 
     def load_package(self, package_data):
+        """ load package and output:
+        - self.manifest (dict)
+        - self.programs_hex (data of executables as array of ints)  """
         fp = BytesIO(package_data)
         with zipfile.ZipFile(fp, "r") as zfp:
             with zfp.open('manifest.txt', 'r') as mfp:
@@ -236,3 +235,7 @@ class AlfaPackageLoader:
                 with zfp.open(fn) as f:
                     self.programs_hex[fn] = HexUtils.load_hex_to_array(
                         f.read().decode())
+
+            if "proto_mode" not in self.manifest:
+                logging.warning("proto_mode not defined in manifest, setting to 'duplex'")
+                self.manifest["proto_mode"] = "duplex"

@@ -98,14 +98,14 @@ class AlfaPackageLoader:
             logging.warning(
                 f"need to reinitialize after programming master ({str(e)})")
 
-        master_node = [x for x in self.manifest["programs"] \
+        master_prog = [x for x in self.manifest["programs"] \
                        if x["board-name"] == "master"][0]
         self.update_status("main", "programming master", 3, 5)
         try:
             afl = None
             afl = AlfaFirmwareLoader(**params)
             afl.erase()
-            hexdata = self.programs_hex[master_node['filename']]
+            hexdata = self.programs_hex[master_prog['filename']]
             afl.program(hexdata)
             assert afl.verify(hexdata, check_digest=False)
             afl.seal(hexdata)
@@ -133,10 +133,10 @@ class AlfaPackageLoader:
             raise RuntimeError("upgrade not supported by master")
         for prog in self.manifest["programs"]:
             for addr in prog['addresses']:
-                if addr in self.slaves_configuration and prog is not master_node:
+                if addr in self.slaves_configuration and prog is not master_prog:
                     program_steps[addr] = prog
 
-        logging.debug(f"programs steps: {program_steps} "
+        logging.info(f"programs steps: {program_steps} "
                       f"slaves_configuration: {self.slaves_configuration}")
 
         current_step = 1

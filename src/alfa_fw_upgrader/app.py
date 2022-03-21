@@ -19,6 +19,7 @@ import os
 import json
 import threading
 from pathlib import Path
+import importlib
 import yaml
 import eel
 from appdirs import AppDirs
@@ -94,7 +95,7 @@ class GUIApplication:
                 eel.update_process_js({"result": "ok", "output": ""})
 
             except Exception as e:
-                traceback.print_exc()
+                traceback.print_exc(file=sys.stderr)
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("INIT_FAILED", str(e))})
@@ -151,6 +152,7 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
+                traceback.print_exc(file=sys.stderr)
 
         elif action == 'program':
             try:
@@ -167,6 +169,7 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("PROGRAM_FAILED")})
+                traceback.print_exc(file=sys.stderr)
                 return
 
             try:
@@ -179,6 +182,7 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
+                traceback.print_exc(file=sys.stderr)
                 return
 
             try:
@@ -188,6 +192,7 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("DIGEST_FAILED")})
+                traceback.print_exc(file=sys.stderr)
                 return
 
         elif action == 'jump':
@@ -198,6 +203,7 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("COMMAND_FAILED")})
+                traceback.print_exc(file=sys.stderr)
         elif action == 'reset':
             try:
                 self.ufl.reset()
@@ -206,14 +212,26 @@ class GUIApplication:
                 eel.update_process_js({
                     "result": "fail",
                     "output": self._get_output("COMMAND_FAILED")})
+                traceback.print_exc(file=sys.stderr)
         else:
             eel.update_process_js({
                 "result": "fail",
                 "output": "invalid action"})
 
     def get_settings(self):
-        settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
         try:
+            if self.args.configfile is not None:
+                mod_pth, mod_name = os.path.split(self.args.configfile)
+                sys.path += [mod_pth, ]
+                logging.debug("mod_pth:{}, mod_name:{}, sys.path:{}"
+                               .format(mod_pth, mod_name, sys.path))
+                conf = importlib.import_module(os.path.splitext(mod_name)[0])
+                self.settings = self.default_settings.copy()
+                self.settings.update(conf.settings)
+                self.settings_from_default = False
+                return
+
+            settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
             with open(settings_filename, 'r') as f:
                 self.settings = yaml.load(f.read(), Loader=yaml.SafeLoader)
             self.settings_from_default = False
@@ -221,8 +239,13 @@ class GUIApplication:
             logging.info("failed to load settings, setting defaults")
             self.settings = self.default_settings.copy()
             self.settings_from_default = True
+            traceback.print_exc(file=sys.stderr)
 
     def save_settings(self):
+        if self.args.configfile is not None:
+            logging.info("settings will not be saved")
+            return
+
         settings_filename = os.path.join(self.userdata_path, 'settings.yaml')
         Path(self.userdata_path).mkdir(parents=True, exist_ok=True)
 
@@ -244,6 +267,13 @@ class GUIApplication:
                 self.logging_handler.release()
 
     def __init__(self):
+        self.logging_handler = logging.StreamHandler(sys.stderr)
+        logging.basicConfig(
+            level="DEBUG",
+            format="[%(asctime)s]%(levelname)s %(funcName)s() "
+                   "%(filename)s:%(lineno)d %(message)s")
+        logging.getLogger().addHandler(self.logging_handler)
+        self._set_logging_stream(reset_to_stderr=True)
         self.hex_available = False
         eel.init(importlib_resources.files(templates),
                  allowed_extensions=['.js', '.html', '.ico'])
@@ -294,6 +324,7 @@ class GUIApplication:
                     "result": "fail",
                     "output": self._get_output("VERIFY_FAILED", str(e))})
                 self.hex_available = False
+                traceback.print_exc(file=sys.stderr)
 
         @eel.expose
         def process_manual(setup_dict):
@@ -377,7 +408,7 @@ class GUIApplication:
             eel.update_process_js({
                 "result": "fail",
                 "output": self._get_output("UPDATE_FAILED", str(e))})
-            # ~ traceback.print_exc(file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
         else:
             eel.update_process_js({"result": "ok", "output": ""})
         self.exec_disconnect()
@@ -404,13 +435,13 @@ class GUIApplication:
             formatter_class=argparse.RawDescriptionHelpFormatter)
 
         parser.add_argument(
-            '-s',
-            '--user-data',
-            dest='userdata',
+            '-c',
+            '--config-file',
+            dest='configfile',
             type=str,
             default=None,
-            help='path to user data folder - if not specified '
-                 'use system preferences folder')
+            help='configuration file - if not specified create and use '
+                 'a config file in system preferences folder')
 
         parser.add_argument(
             '-p',
@@ -440,23 +471,7 @@ class GUIApplication:
         self.cmd_connect = self.args.cmdconnect
         self.cmd_disconnect = self.args.cmddisconnect
 
-        if self.args.userdata is not None:  # argument not set
-            self.userdata_path = self.args.userdata
-
         self.get_settings()
-
-        logging.basicConfig(
-            stream=sys.stdout, level="DEBUG",
-            format="[%(asctime)s]%(levelname)s %(funcName)s() "
-                   "%(filename)s:%(lineno)d %(message)s")
-
-        self.logging_handler = logging.StreamHandler(sys.stderr)
-        logging.basicConfig(
-            level="DEBUG",
-            format="[%(asctime)s]%(levelname)s %(funcName)s() "
-                   "%(filename)s:%(lineno)d %(message)s")
-        logging.getLogger().addHandler(self.logging_handler)
-        self._set_logging_stream(reset_to_stderr=True)
 
         if self.args.httpport is None:  # argument not set
             eel.start('index.html')
@@ -561,7 +576,7 @@ To perform verify only, with debug info and reset,
         },
         "DIGEST_FAILED": {
             "descr": "Failed to set digest value ({})",
-            "retcode": 9
+            "retcode": 10
         }
     }
 

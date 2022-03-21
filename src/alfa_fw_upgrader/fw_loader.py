@@ -145,8 +145,8 @@ class AlfaFirmwareLoader:
             raise RuntimeError("failed to query device") from e
 
         logging.info(
-            "Response to QUERY, address = {}, length = {}, proto_ver = {},"
-            "boot_ver = {} boot_status = {} digest = {}" .format(
+            "Response to QUERY: address={}, length={}, proto_ver={},"
+            "boot_ver={}, boot_status={}, digest={}" .format(
                 address,
                 length,
                 proto_ver,

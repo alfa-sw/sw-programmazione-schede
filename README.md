@@ -16,7 +16,7 @@ operations.
 >     # apt install libusb-1.0.0
 
 2. Adjust USB device permissions.
->     # echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", MODE="0666"' > 
+>     # echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", MODE="0666"' > \
 >       /etc/udev/rules.d/99-microchip.rules 
 >     # /etc/init.d/udev restart
 
@@ -47,14 +47,12 @@ To use GUI application:
 To use CLI application:
 >     $ alfa_fw_upgrader_cli
 
-To start a service suitable for rapsberry environment:
->     $ alfa_fw_upgrader_service
 
 ### supervisord configuration example
 
 ```
 [program:alfa_fw_upgrader]
-command=/bin/sh -c '. /opt/alfa_cr6/venv/bin/activate && alfa_fw_upgrader_service'
+command=/bin/sh -c '. /opt/rs485-master/venv/bin/activate && alfa_fw_upgrader_gui -c /opt/alfa/conf/fw_upgrader_conf.py'
 user=admin
 autostart=true
 autorestart=true

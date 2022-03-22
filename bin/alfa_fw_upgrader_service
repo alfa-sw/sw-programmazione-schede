@@ -1,6 +1,0 @@
-#!/bin/bash
-
-alfa_fw_upgrader_gui -c /opt/alfa/conf/fw_upgrader_conf.py -p 8070 \
- --cmd-connect "supervisorctl stop alfa_dispatcher dispatcher_alfadesk dispatcher_admin serial_dispatcher" \
- --cmd-disconnect "supervisorctl start alfa_dispatcher dispatcher_alfadesk dispatcher_admin serial_dispatcher"
-

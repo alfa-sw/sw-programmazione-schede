@@ -60,7 +60,10 @@ class GUIApplication:
         "serial_port": "/dev/ttyUSB0",
         "strategy": "simple",
         "serial_mode": "duplex",
-        "expert": False
+        "expert": False,
+        "http_port": 8070,
+        "cmd_connect": None,
+        "cmd_disconnect": None
     }
 
     def _get_output(self, error_key, format_arg=None):
@@ -305,11 +308,11 @@ class GUIApplication:
         @eel.expose  # Expose this function to Javascript
         def save_settings(new_settings):
             self.settings = {}
-            for k, s in self.default_settings.items():
+            for k, _ in new_settings.items():
                 self.settings[k] = new_settings[k]
             self.save_settings()
 
-        @eel.expose
+        @eel.expose # Expose this function to Javascript
         def process_hex(file_content):
             self._set_logging_stream()
             logging.info("processing hex file")
@@ -326,12 +329,12 @@ class GUIApplication:
                 self.hex_available = False
                 traceback.print_exc(file=sys.stderr)
 
-        @eel.expose
+        @eel.expose # Expose this function to Javascript
         def process_manual(setup_dict):
             self._set_logging_stream()
             self.process_manual(setup_dict)
 
-        @eel.expose
+        @eel.expose # Expose this function to Javascript
         def process_machine(setup_dict):
             self._set_logging_stream()
 
@@ -352,7 +355,7 @@ class GUIApplication:
                 target=self.process_machine, args=(data,))
             self.worker.start()
 
-        @eel.expose
+        @eel.expose # Expose this function to Javascript
         def get_log():
             try:
                 log = str(self.log_stream.getvalue())
@@ -441,60 +444,34 @@ class GUIApplication:
             type=str,
             default=None,
             help='configuration file - if not specified create and use '
-                 'a config file in system preferences folder')
-
-        parser.add_argument(
-            '-p',
-            '--http-port',
-            dest='httpport',
-            type=int,
-            default=None,
-            help='set the HTTP port to listen to - use this argument '
-                 'to start a web server instead of opening a window')
-
-        parser.add_argument(
-            '--cmd-connect',
-            dest='cmdconnect',
-            type=str,
-            default=None,
-            help='command to execute before connecting')
-
-        parser.add_argument(
-            '--cmd-disconnect',
-            dest='cmddisconnect',
-            type=str,
-            default=None,
-            help='command to execute after disconnecting')
+                 'a config file in system preferences folder and open the browser')
 
         self.args = parser.parse_args()
 
-        self.cmd_connect = self.args.cmdconnect
-        self.cmd_disconnect = self.args.cmddisconnect
-
         self.get_settings()
 
-        if self.args.httpport is None:  # argument not set
+        if self.args.configfile is None:  # argument not set
             eel.start('index.html')
         else:
             # to start without opening a new browser
             print(
-                f"Service starting - URL: http://localhost:{self.args.httpport}/")
-            eel.start('index.html', mode=False, port=self.args.httpport,
+                f"Service starting - URL: http://localhost:{self.settings['http_port']}/")
+            eel.start('index.html', mode=False, port=self.settings['http_port'],
                       host='0.0.0.0', close_callback=self.close)
 
     def exec_connect(self):
-        if self.cmd_connect is not None:
-            logging.info(f"executing {self.cmd_connect}")
-            ret = os.system(self.cmd_connect)
+        if self.settings["cmd_connect"] is not None:
+            logging.info(f"executing {self.settings['cmd_connect']}")
+            ret = os.system(self.settings["cmd_connect"])
             if ret:
                 logging.warning(f"command failed (os.system returned: {ret})")
             else:
                 logging.info("command done")
 
     def exec_disconnect(self):
-        if self.cmd_disconnect is not None:
-            logging.info(f"executing {self.cmd_disconnect}")
-            ret = os.system(self.cmd_disconnect)
+        if self.settings["cmd_disconnect"] is not None:
+            logging.info(f"executing {self.settings['cmd_disconnect']}")
+            ret = os.system(self.settings["cmd_disconnect"])
             if ret:
                 logging.warning(f"command failed (os.system returned: {ret})")
             else:
